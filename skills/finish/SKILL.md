@@ -9,16 +9,77 @@ Complete the plan lifecycle: mark it done, merge the PR, sync local main.
 
 ## When to Use
 
-- After a plan's PR is open and all reviews/CI have passed
+- After a plan's work is complete and ready to land on main
 - When the user says "merge this", "ship it", "finish up", or "land this"
-- After `implement` has opened the PR
+- After `implement` has opened a PR, or after `greptile` review loop is clean
 
 **Don't use when:**
-- PR has failing CI — fix issues first
-- Plan doesn't have a PR yet — use `implement` to create one
 - Design isn't approved yet — use `discuss`
+- Work is incomplete — finish implementation first
 
 ## Process
+
+### 0. Determine Merge Mode
+
+Check whether a PR already exists for the current branch:
+
+```bash
+CURRENT_BRANCH=$(git branch --show-current)
+gh pr list --head $CURRENT_BRANCH --state open --json number --jq '.[0].number'
+```
+
+- **PR exists** → Follow the [PR Merge Path](#pr-merge-path) below (Steps 1–3)
+- **No PR exists** → Follow the [Direct Merge Path](#direct-merge-path) below
+
+> **When no PR exists:** If context is clear (e.g., clean greptile review just completed on a feature branch), proceed directly to building, testing, and merging. If ambiguous (e.g., on `main` with no changes, or unclear what should merge), ask the user:
+>
+> ```
+> ask({ questions: [{ id: "merge-mode", question: "No open PR found for this branch. What would you like to do?", options: [
+>   { label: "Open a PR then merge" },
+>   { label: "Merge directly without PR" },
+>   { label: "Cancel" }
+> ]}]})
+> ```
+
+### Direct Merge Path
+
+No PR required — validate the branch locally and merge:
+
+1. **Verify we're on a feature branch** (not `main`):
+   - If already on `main`, stop and report "Already on main — nothing to merge."
+
+2. **Run the full local validation gate:**
+   ```bash
+   cargo fmt --all --check
+   cargo clippy --workspace -- -D warnings
+   cargo nextest run --workspace
+   ```
+   If anything fails, stop and report the failures.
+
+3. **Squash-merge the feature branch into main:**
+   ```bash
+   git checkout main
+   git merge --squash $CURRENT_BRANCH
+   git commit -m "feat: [plan summary from plan file or branch name]"
+   ```
+   (Use the plan title or a descriptive summary — not just the branch name.)
+
+4. **Push main:**
+   ```bash
+   git push origin main
+   ```
+
+5. **Delete the feature branch** (remote + local):
+   ```bash
+   git push origin --delete $CURRENT_BRANCH
+   git branch -d $CURRENT_BRANCH
+   ```
+
+6. Skip to [Step 4: Sync Local Main](#4-sync-local-main) (already synced above).
+
+### PR Merge Path
+
+A PR already exists — validate via GitHub, then merge.
 
 ### 1. Check Reviews and Comments FIRST
 

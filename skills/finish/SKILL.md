@@ -48,12 +48,13 @@ No PR required — validate the branch locally and merge:
 1. **Verify we're on a feature branch** (not `main`):
    - If already on `main`, stop and report "Already on main — nothing to merge."
 
-2. **Run the full local validation gate:**
-   ```bash
-   cargo fmt --all --check
-   cargo clippy --workspace -- -D warnings
-   cargo nextest run --workspace
-   ```
+2. **Discover the project's validation commands:**
+   Read the repo's `AGENTS.md` or `CLAUDE.md` (whichever exists at the repo root) for a "Build & Testing", "CI", "Gate", or similar section that lists the format/lint/test commands.
+
+   - **Found instructions** → Run the listed validation commands (e.g., `make check`, `npm run lint && npm test`, etc.)
+   - **No instructions found** → Ask the user: "The repo has no AGENTS.md/CLAUDE.md with build/test commands. What commands should I run to validate this branch before merging?"
+     After the user answers, add a section to `AGENTS.md` (create if missing) documenting the commands, so future runs don't need to ask.
+
    If anything fails, stop and report the failures.
 
 3. **Squash-merge the feature branch into main:**

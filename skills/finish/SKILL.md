@@ -204,12 +204,14 @@ Edit `docs/plans/README.md`:
 4. Update Quick Stats: increment completed count, decrement backlog count
 5. If the Backlog table is now empty, remove the section
 
-Commit the update:
+Commit the update (stage the plan file move + README changes together):
 
 ```bash
-git add docs/plans/README.md
+git add docs/plans/README.md docs/plans/done/plan-NNN-<feature>.md docs/plans/plan-NNN-<feature>.md
 git commit -m "docs: mark [plan-name] as completed (PR #[number])"
 ```
+
+> **Important:** The `mv` in the step above is not tracked by git until staged. The `git add` must include both the new file (`done/plan-NNN-*.md`) and the deleted file (`plan-NNN-*.md`) so git records the rename — omitting them leaves the move uncommitted.
 
 ### 6. Report
 

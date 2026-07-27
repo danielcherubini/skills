@@ -1,7 +1,6 @@
 ---
 name: general
 description: General-purpose subagent for implementing a single task from an approved plan
-model: tama/laguna-s-2.1
 mode: subagent
 subtask: "true"
 ---

@@ -2,7 +2,6 @@
 name: explore
 description: Fast cheap local file lookup for codebase search and reading. Primary agent for quick file questions.
 tools: read, bash, web_search, fetch_content
-model: openrouter/free
 mode: subagent
 subtask: "true"
 ---

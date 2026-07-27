@@ -1,14 +1,4 @@
-# dotagents
-
-Specialized instruction sets and subagent configurations that extend AI coding agents with structured, reliable workflows.
-
----
-
-## What Are Skills?
-
-Skills are self-contained instruction files (`SKILL.md`) that teach the agent how to perform specific workflows — from code review and debugging to release management and daily standups. Each skill lives in its own directory under [`skills/`](skills/) with YAML frontmatter that declares when it should activate.
-
-The agent reads every skill's `description` field to decide which to load. You can also reference a skill by name at any time — *"use the systematic-debugging skill on this test failure"*.
+# My Skills and Agents
 
 ## The Core Pipeline
 

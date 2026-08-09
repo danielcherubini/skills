@@ -9,7 +9,19 @@ description: |
 
 # Review
 
-Transform code reviews from gatekeeping to knowledge sharing through constructive feedback, systematic analysis, and collaborative improvement.
+Run a code review on the current local branch, fix all actionable findings, and re-review until clean — all in a loop before opening a PR.
+
+## Overview
+
+This skill runs an iterative review loop. Each iteration: dispatch reviewer → parse findings → fix all actionable items → re-review. The loop exits when there are zero actionable findings, max iterations are reached, or the review command fails. After the loop, the skill asks whether to **Open a PR** (using the implement skill's PR logic) or **Merge to main** (using the finish skill).
+
+## When to Use
+
+- After `implement` tasks are complete and the user selects "Review loop"
+- When the user says "review loop", "looped review", "fix all review issues"
+- When the user wants a thorough code review with automatic fixes before opening a PR
+
+**Not for:** reviewing an already-open PR on GitHub (use `gh pr review`), debugging a specific bug (use `systematic-debugging`), quick sanity check on a single file (inline review is fine)
 
 ## Architecture — Read This First
 
@@ -21,17 +33,22 @@ Main agent (YOU — running this skill)
   ├── Phase 2: Synthesize context → classify change, determine scope
   ├── Phase 3: Dispatch reviewer subagent with enriched brief
   │     └── reviewer: reads code, runs checks, returns report     ← pure leaf
-  ├── Phase 4: Main agent presents report → calls ask()           ← YOU interact
-  ├── Phase 5: (user responds) Main agent fixes selected issues
-  └── Phase 6: Re-verify fixes, recommend merge
+  ├── Phase 4: Parse findings — classify actionable vs informational
+  ├── Phase 5: Fix findings — dispatch general subagent to fix each actionable item
+  ├── Phase 6: Re-run review — loop back to Phase 3 if findings remain
+  ├── Phase 7: Exit conditions met — present summary
+  └── Phase 8: Final ask() — Open a PR or Merge to main
 ```
 
-**You (the main agent) own orchestration AND user interaction.** Two subagent types, both pure leaves:
+**You (the main agent) own all orchestration AND all user interaction.** Three subagent types, all pure leaves:
 
 1. **explore** — gathers context: files to review, diffs, related code, test coverage, CI status, docs. Returns a concise context brief.
 2. **reviewer** — receives the context brief + review scope from the main agent. Reads code, runs lint/test commands, performs analysis, returns a categorized report.
+3. **general** — dispatched in Phase 5 to fix actionable findings. Applies fixes and returns summaries.
 
-**Subagents never interact with the user.** The reviewer returns its findings as a report. The main agent presents the report to the user and calls `ask()`. No subagent ever fixes code or calls `ask()`.
+**Subagents never interact with the user.** The reviewer returns findings as a report. The general subagent applies fixes. Only the main agent calls `ask()` — and only once at the end (Phase 8).
+
+## Workflow
 
 ### Phase 1: Dispatch explore subagent(s)
 
@@ -40,7 +57,7 @@ Use `subagent` with `agent: "explore"` to gather context. Dispatch one or more i
 ```
 subagent({
   agent: "explore",
-  task: "Gather review context for [target]. Find all changed files, " +
+  task: "Gather review context for the current branch. Find all changed files, " +
         "related imports/callers, test coverage, and any CI/lint status. " +
         "Return a concise brief: files, scope, languages, and risk areas."
 })
@@ -73,30 +90,169 @@ subagent({
 
 The reviewer subagent **returns a report only** — it never calls `ask()` and never fixes code.
 
-### Phase 4: Present report and ask
+### Phase 4: Parse Findings
 
-The main agent receives the reviewer's report, displays it to the user, and calls `ask()` to let the user choose what to fix. **This is the only point of user interaction.**
+Parse the reviewer's report and classify each finding:
+
+| Type | Description | Action |
+|------|-------------|--------|
+| **Actionable** | 🔴 Blocking or 🟡 Important — code change needed | Fix in Phase 5 |
+| **Nit** | 🟢 Nice to have, not blocking | Fix in Phase 5 (auto-fix all) |
+| **Informational** | 💡 Suggestion, 📚 Learning, or 🎉 Praise | Note but don't fix |
+
+If there are **zero actionable findings** (no 🔴, 🟡, or 🟢), skip to Phase 7 (exit condition met).
+
+### Phase 5: Fix Findings
+
+> ⚠️ **DISPATCH GUARD — READ BEFORE FIXING EACH FINDING**
+>
+> - **You MUST dispatch a `general` subagent for each actionable finding.**
+> - **DO NOT fix code, edit files, or stage changes directly in your own context.**
+> - If you skip dispatch, you forfeit the isolation and accountability that the subagent provides.
+> - The main agent owns orchestration only — fix application is delegated.
+
+#### Per-Finding Sequence (follow rigidly for every actionable finding)
+
+**Step 1 — STOP & Verify.**
+Before touching anything, confirm:
+- [ ] This is an actionable finding from the current review output
+- [ ] No fix has been applied yet in this context
+- [ ] You are about to dispatch a `general` subagent (not fix the code yourself)
+
+**Step 2 — Dispatch the subagent.**
+
+> **DO NOT add a `model` parameter to any subagent call.** The agent definition controls its own model. Adding `model` causes hallucinated model names that break the call.
+
+```
+/// ───────────────────────────────────────────────────────────
+///  MANDATORY: dispatch a `general` subagent to fix this finding.
+///  DO NOT edit files or stage changes in your own context.
+/// ───────────────────────────────────────────────────────────
+subagent({
+  agent: "general",
+  task: "Fix the following review findings on the local branch. For each finding: read the file, understand the issue, make the fix, and stage the change with git add. Findings: [list with file paths, severity, and descriptions]. Return a summary of what was changed.",
+  description: "Fix review finding: [short summary]"
+})
+```
+
+The `general` subagent (not `reviewer`) is the correct dispatch target for applying code fixes — it is the same agent the `implement` skill uses for task execution. The `reviewer` subagent is prohibited from making changes and only returns reports.
+
+**Step 3 — Verify dispatch happened.**
+After the `subagent()` call returns, confirm the subagent actually performed the fix:
+- [ ] The response includes file edits or `git add` from the subagent
+- [ ] You did NOT edit files or stage changes in your own context
+- [ ] If you find yourself having fixed code inline, stop and re-dispatch the subagent immediately
+
+> 🔁 **If you catch yourself fixing code inline instead of dispatching — stop, reset, and dispatch the subagent.** This is the #1 failure mode of this skill; do not let it happen.
+
+### Phase 6: Re-run Review (Loop)
+
+After all fixes from Phase 5 are applied:
+
+1. Go back to Phase 3 (dispatch reviewer again with updated code)
+2. Parse new findings (Phase 4)
+3. If new actionable findings exist, fix them (Phase 5)
+4. Repeat
+
+**Loop guard:** Max 5 iterations to avoid runaway loops. Each iteration is one full cycle of Phase 3 → Phase 4 → Phase 5.
+
+### Phase 7: Exit Conditions
+
+Stop the loop if **any** of these are true:
+
+| Condition | Behavior |
+|-----------|----------|
+| Zero actionable findings (no 🔴, 🟡, or 🟢) | Exit loop, present summary, go to Phase 8 |
+| Max 5 iterations reached | Exit loop, report remaining findings, go to Phase 8 |
+| Review fails catastrophically | Report the failure, go to Phase 8 |
+
+### Phase 8: Final Ask
+
+After the loop exits, present a summary and ask:
+
+```
+ask({
+  questions: [{
+    id: "final-action",
+    question: "Review loop complete. X findings resolved, Y remaining. What would you like to do?",
+    options: [
+      { label: "Open a PR" },
+      { label: "Merge to main" }
+    ],
+    description: "**Summary:**\n- Iterations: N\n- Findings resolved: X\n- Remaining: Y (all informational/suggestions)\n\n**Note:** 'Open a PR' pushes the branch and creates a PR. 'Merge to main' uses the finish skill to merge and sync."
+  }]
+})
+```
+
+- **Open a PR** → Push the branch and open a PR:
+  ```bash
+  git push -u origin [branch-name]
+  gh pr create --title "[title]" --body "$(cat <<'EOF'
+  ## Summary
+  - [bullets]
+
+  ## Test plan
+  - [ ] [verification steps]
+  EOF
+  )"
+  ```
+  Report the PR URL to the user.
+
+- **Merge to main** → Load the `finish` skill directly (no PR needed — the finish skill handles both PR and direct-merge paths):
+  1. Push the branch: `git push -u origin [branch-name]`
+  2. Load the `finish` skill and run its full pipeline:
+     - The finish skill checks whether a PR exists for the branch
+     - If no PR → runs local validation gate and squash-merges directly onto main
+     - If PR exists → checks reviews/CI/mergeability then merges via GitHub
 
 ### When to use subagents vs. review inline
 
 | Scenario | Approach |
 |---|---|
 | Single file, < 100 lines, trivial change | Inline review (no subagents) |
-| Multiple files or > 100 lines | **explore → reviewer → present → ask** pipeline |
+| Multiple files or > 100 lines | **explore → reviewer → fix loop** pipeline |
 | Cross-cutting concern (security, perf, architecture) | **explore → reviewer** with focused scope |
-| User says "review" without specifics | **explore → reviewer → present → ask** pipeline |
-| Large change (> 400 lines) | **Multiple explore** in parallel → **reviewer → present → ask** |
+| User says "review" without specifics | **explore → reviewer → fix loop** pipeline |
+| Large change (> 400 lines) | **Multiple explore** in parallel → **reviewer → fix loop** |
 
-## When to Use This Skill
+## Integration with Implement Skill
 
-- Reviewing pull requests and code changes
-- Establishing code review standards for teams
-- Mentoring junior developers through reviews
-- Conducting architecture reviews
-- Creating review checklists and guidelines
-- Improving team collaboration
-- Reducing code review cycle time
-- Maintaining code quality standards
+The `implement` skill's "After All Tasks Complete" section includes:
+
+```
+{ label: "Review loop" }
+```
+
+When selected:
+1. Load the `review` skill
+2. Run it to completion (Phases 1–7)
+3. At Phase 8, the review skill asks "Open a PR" or "Merge to main"
+4. If "Open a PR" → use implement's "Open PR only" logic
+5. If "Merge to main" → load the `finish` skill
+
+## Quick Reference
+
+| Phase | Action | Purpose |
+|-------|--------|---------|
+| 1 | Dispatch `explore` subagent(s) | Gather context: files, scope, dependencies |
+| 2 | Synthesize & classify | Determine change type, depth, focus areas |
+| 3 | Dispatch `reviewer` subagent | Run review against code, return categorized report |
+| 4 | Parse findings | Classify actionable (🔴🟡🟢) vs informational (💡📚🎉) |
+| 5 | Fix findings via `general` subagents | Dispatch one subagent per actionable finding |
+| 6 | Loop back to Phase 3 | Re-review until zero actionable or max iterations |
+| 7 | Exit conditions met | Present summary of resolved/remaining findings |
+| 8 | `ask()` — Open a PR or Merge to main | Final user decision |
+
+## Common Mistakes
+
+| Mistake | Fix |
+|---------|-----|
+| Running review once and stopping | Loop back to Phase 3 after fixes until zero actionable findings |
+| Fixing code directly instead of dispatching a subagent | The main agent must delegate ALL code fixes to `general` subagents — never edit files in your own context |
+| Having the reviewer fix code | The reviewer only returns reports — use `general` for fixes |
+| Calling `ask()` after each review iteration | Only call `ask()` once at Phase 8 (after the loop exits) |
+| Exceeding max iterations | Stop at 5 iterations and report remaining findings |
+| Skipping informational findings entirely | Note 💡 Suggestions, 📚 Learning, and 🎉 Praise in the final summary
 
 ## Core Principles
 
@@ -180,7 +336,7 @@ The main agent receives the reviewer's report, displays it to the user, and call
 - Simple typos (unless in user-facing text)
 - Style preferences that are already codified in linters
 
-## Review Process
+## Review Process Details
 
 See [Architecture](#architecture--read-this-first) for the high-level flow. This section expands each phase with detailed checklists.
 
@@ -207,8 +363,8 @@ After collecting explore results, classify:
 4. **Risk level** — based on affected code paths and test coverage
 
 Checklist:
-- [ ] What problem does this solve? (from PR description)
-- [ ] What's the PR size? (lines changed, files touched)
+- [ ] What problem does this solve? (from branch context / plan)
+- [ ] What's the scope? (lines changed, files touched)
 - [ ] Are tests passing? Is linting clean?
 - [ ] Who is this for? What's the user impact?
 - [ ] New dependencies? API changes? Schema changes? Breaking changes?
@@ -268,131 +424,6 @@ The reviewer subagent follows this checklist for each changed file:
 - API docs for public functions/types
 - Migration guides for breaking changes
 - Changelog entries for user-facing changes
-
-### Main agent presents report and calls ask() — HARD STOP
-
-> 🛑 **HARD STOP POINT — READ THIS FIRST**
->
-> After the reviewer subagent returns its report, the **main agent** presents the findings to the user and calls `ask()`. This is the **ONLY** place in the entire review process where execution pauses for user input.
->
-> **The reviewer subagent never calls `ask()`.** It returns a report. The main agent presents it and asks.
->
-> **EXECUTION FLOW (MUST follow this exact sequence):**
-> ```
-> reviewer returns report → main agent presents to user → main agent calls ask() → [STOP — WAIT] → (user responds) → main agent fixes
->                                                                                                              ↑
->                                                                                                              └── HARD STOP.
-> ```
->
-> **Main agent PRE-FLIGHT CHECKLIST (Complete ALL before proceeding):**
-> - [ ] I have received the reviewer's report ✅
-> - [ ] I have presented the findings to the user ✅
-> - [ ] I have called `ask()` with the fix-priority question ✅
-> - [ ] I am NOT about to fix, suggest, or modify any code ✅
-> - [ ] I am waiting for user input before doing anything else ✅
->
-> **❌ NEVER do any of these:**
-> - Present findings and then immediately start fixing issues
-> - Say "What would you like to do?" in plain text instead of using `ask()`
-> - Begin fixes before receiving a response from `ask()`
-> - Assume the user wants everything fixed — let them choose
-> - Have the reviewer subagent call `ask()` — only the main agent calls `ask()`
->
-> **✅ ALWAYS do this — IN EXACT ORDER:**
-> 1. Receive reviewer's report
-> 2. Present the findings to the user (count and categorize)
-> 3. Call `ask()` with the question format below
-> 4. STOP. Wait for the user's response.
->
-> **This is a hard break in execution.** After `ask()` the main agent waits — nothing happens until the user responds.
->
-> **VIOLATION DETECTION:** If you find yourself about to fix, suggest, or modify code after presenting findings, you have violated this rule. Go back and call `ask()` first.
-
-#### Report format
-
-Tally findings from the reviewer's report:
-
-```typescript
-// Tally your findings:
-let countBlocking = 0;    // 🔴 Must fix before merge
-let countImportant = 0;   // 🟡 Should fix, discuss if disagree
-let countNit = 0;         // 🟢 Nice to have, not blocking
-let countSuggestions = 0; // 💡 Alternative approaches
-let countLearning = 0;    // 📚 Educational, no action needed
-let countPraise = 0;      // 🎉 Good work, keep it up!
-```
-
-#### Present the summary to the user
-
-```markdown
-## Code Review Summary
-
-**🔴 Blocking (N):**
-1. [Issue description] - `file.ts:42`
-   - Impact: [What breaks if unfixed]
-   - Fix: [Suggested approach]
-
-**🟡 Important (N):**
-1. [Issue description] - `file.ts:100`
-   - Impact: [What degrades if unfixed]
-
-**🟢 Nit (N):**
-1. [Issue description] - `file.ts:150`
-   - Impact: [Minor improvement]
-
-**💡 Suggestions (N):**
-1. [Suggestion] - `file.ts:200`
-   - Why: [Benefit of change]
-
-**📚 Learning (N):**
-1. [Educational note] - `file.ts:250`
-
-**🎉 Praise (N):**
-1. [Positive feedback] - `file.ts:300`
-```
-
-#### Call ask() immediately after presenting
-
-```typescript
-ask({
-  questions: [{
-    id: "fix-priority",
-    question: `Found ${countBlocking + countImportant + countNit + countSuggestions} issues. What would you like to fix?`,
-    options: [
-      { label: `Fix 🔴 blocking only (${countBlocking})` },
-      { label: `Fix 🔴 + 🟡 (${countBlocking + countImportant})` },
-      { label: `Fix all (blocking + important + nit)` },
-      { label: `Review all findings without fixing` }
-    ],
-    description: `**🔴 Blocking:** Must fix before merge\n**🟡 Important:** Should fix, discuss if disagree\n**🟢 Nit:** Nice to have, not blocking\n**💡 Suggestions:** Alternative approach to consider\n**📚 Learning:** Educational note, no action needed\n**🎉 Praise:** Good work, keep it up!`
-  }]
-})
-```
-
-#### STOP and wait for user response
-
-After calling `ask()`, the review is complete. Do nothing else. Do not start fixing. Do not suggest fixes. Wait for the user to respond, then proceed to Phase 5 based on their answer.
-
-**If you skip this step or bypass ask(), you have violated a core rule of the review process.**
-
-### Phase 5: Main agent fixes issues (Based on User Choice)
-
-**⚠️ The main agent handles all fixes — the reviewer subagent never fixes code.**
-
-After `ask()` returns with the user's selection, the main agent fixes issues ONE AT A TIME:
-1. Explain the problem clearly
-2. Show the fix
-3. Verify with tests/linting
-4. Move to next issue
-
-### Phase 6: Re-review (If Issues Were Fixed)
-
-After fixes are applied:
-1. Re-read the fixed code
-2. Verify the fix addresses the issue
-3. Check for any new issues introduced
-4. If issues persist, escalate to user
-5. If all clear, recommend merge
 
 ## Severity Classification Guide
 

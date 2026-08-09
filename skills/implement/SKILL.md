@@ -37,8 +37,13 @@ ask({
 5. Once selected, read the full plan file and continue to Branch Setup.
 
 ## Branch Setup
-- Create feature branch using gitflow conventions (load `gitflow-branching` skill if needed)
-- Create a todo list with `manage_todo_list` with all tasks from the plan
+
+Load the `gitflow-branching` skill. Determine whether this plan is part of a **stack** (check the plan file for "Stack:" or "builds on `stack/...`"):
+
+- **Simple plan (single PR):** Create a `feature/*` branch from `main`.
+- **Stacked plan:** Create a `stack/<sub-plan-name>` branch from the previous stack branch (or trunk for the first sub-plan). After all needed branches exist, register with `gh stack init` and submit with `gh stack submit`.
+
+Then create a todo list with `manage_todo_list` with all tasks from the plan.
 
 > 🔒 **Gate: Do not proceed to Task Dispatch until the branch exists AND the todo list is created.** These are prerequisites for proper subagent dispatch and tracking.
 
@@ -120,10 +125,9 @@ ask({
     id: "next-step",
     question: "All tasks complete. What would you like to do next?",
     options: [
-      { label: "Code review then PR" },
-      { label: "Open PR only" },
-      { label: "Code review only" },
+      { label: "Review loop" },
       { label: "Greptile review loop" },
+      { label: "Open PR only" },
       { label: "Finish plan" }
     ]
   }]
@@ -132,29 +136,16 @@ ask({
 
 Then follow the user's choice immediately — do NOT ask for additional confirmation.
 
-### Code review then PR
+### Review Loop
 
-**Run a full code review, then open the PR.**
+**Run a full code review loop — auto-fix all findings iteratively until clean.**
 
-1. Load the `review` skill and run its full pipeline yourself (you are the main agent). Pass the implementation plan as context so the review checks **both** code quality (standards, smells) **and** spec compliance (implementation vs plan):
-
-   - The review skill handles: explore → classify → reviewer → present → ask → fix → re-review
-   - When dispatching its reviewer subagent, include this in the task: "Also review against the plan at `docs/plans/plan-NNN-<feature>.md` — check that all acceptance criteria are met and no planned work was missed."
-   - Let the review skill run to completion — do not short-circuit its ask() or skip its fix phase
-
-2. After the review skill completes, proceed to **Open PR** below
-
-### Code review only
-
-**Run a full code review — do NOT open a PR.**
-
-1. Load the `review` skill and run its full pipeline yourself (you are the main agent). Pass the implementation plan as context so the review checks **both** code quality (standards, smells) **and** spec compliance (implementation vs plan):
-
-   - The review skill handles: explore → classify → reviewer → present → ask → fix → re-review
-   - When dispatching its reviewer subagent, include this in the task: "Also review against the plan at `docs/plans/plan-NNN-<feature>.md` — check that all acceptance criteria are met and no planned work was missed."
-   - Let the review skill run to completion — do not short-circuit its ask() or skip its fix phase
-
-2. Return to the user — do NOT open a PR
+1. Load the `review` skill and run it to completion (explore → classify → reviewer → parse → fix → re-review → loop until clean or max iterations)
+2. The review skill handles the review loop itself — let it run to completion
+3. The review skill's Phase 8 will ask **Open a PR** or **Merge to main** and execute the chosen action:
+   - **Open a PR** → The review skill opens the PR and reports the URL
+   - **Merge to main** → The review skill loads the `finish` skill (see **Finish Plan** below)
+4. After the review skill completes, proceed to **Update Plan Index** below
 
 ### Greptile Review Loop
 
@@ -169,6 +160,7 @@ Then follow the user's choice immediately — do NOT ask for additional confirma
 
 ### Open PR only
 
+**For simple plans (single PR):**
 ```bash
 git push -u origin [branch-name]
 gh pr create --title "[title]" --body "$(cat <<'EOF'
@@ -181,7 +173,13 @@ EOF
 )"
 ```
 
-Report the PR URL to the user.
+**For stacked plans:** Use `gh stack` to push and submit all branches:
+```bash
+gh stack push      # Push all stack branches
+gh stack submit    # Create/update PRs as a linked stack
+```
+
+Report the PR URL(s) to the user.
 
 **Clear the todo list** — remove all remaining entries now that execution is complete.
 

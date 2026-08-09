@@ -59,7 +59,7 @@ The [research](research/) and [review](review/) skills are pluggable gates you c
 
 | Skill | Trigger | What it does |
 |-------|---------|--------------|
-| [research](research/) | Comparing libraries, evaluating approaches, deep-dives | Phased research: classify → dispatch parallel researcher subagents → synthesize → hard-stop ask → deliver. Evidence-backed with citations. |
+| [research](research/) | Comparing libraries, evaluating approaches, deep-dives | Phased research: classify → dispatch parallel researcher subagents → synthesize → hard-stop ask → write report to disk. Evidence-backed with citations. |
 | [find-skills](find-skills/) | "find a skill for X", "how do I do X" | Searches the open agent skills ecosystem (skills.sh) and helps discover, evaluate, and install new skills. |
 
 ## Profile and Documentation

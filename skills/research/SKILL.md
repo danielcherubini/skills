@@ -193,14 +193,14 @@ ask({
     id: "research-next",
     question: "Draft report ready. What would you like to do?",
     options: [
-      { label: "Deliver as-is" },
+      { label: "Write report to disk" },
       { label: "Discuss findings" },
       { label: "Targeted deep-dive on specific gaps" },
       { label: "Add a research dimension" },
       { label: "Reframe the question" }
     ],
     multi: true,
-    description: "**Deliver as-is:** Present final report\n**Discuss findings:** Load the discuss skill to design or plan based on these findings\n**Targeted deep-dive:** Dispatch more researchers on specific gaps\n**Add dimension:** Dispatch a new angle not in original plan\n**Reframe:** Start over with revised question"
+    description: "**Write report to disk:** Write the final report as a .md file (do NOT re-print it)\n**Discuss findings:** Load the discuss skill to design or plan based on these findings\n**Targeted deep-dive:** Dispatch more researchers on specific gaps\n**Add dimension:** Dispatch a new angle not in original plan\n**Reframe:** Start over with revised question"
   }]
 })
 ```
@@ -211,7 +211,7 @@ After calling ask(), **stop**. Wait for the response.
 
 | User Choice | Action |
 |-------------|--------|
-| Deliver as-is | Present final structured report |
+| Write report to disk | Write the final structured report to a `.md` file on disk using `write`. Use a descriptive filename under `docs/research/` (e.g. `docs/research/vllm-speculative-decoding.md`). **Do NOT re-print the report to chat — the draft was already shown at Phase 4.5.** |
 | Discuss findings | Load the `discuss` skill, passing the research findings as context. Paste the key findings into the discussion so the agent can use the evidence to inform design decisions. The discussion picks up where research left off. |
 | Targeted deep-dive | Dispatch more researcher subagents on specific gaps, re-synthesise |
 | Add dimension | Dispatch new angle, re-synthesise |

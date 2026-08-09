@@ -1,10 +1,9 @@
 ---
 name: reviewer
 description: Reviews specs, plans, and code for quality, correctness, and completeness. Returns structured verdicts. Review only — never makes changes.
-model: openrouter/z-ai/glm-5.2
 thinking: high
-inheritProjectContext: false
-inheritSkills: false
+inheritProjectContext: "false"
+inheritSkills: "false"
 mode: subagent
 model_kwargs: {"extra_body":{"cache_prompt":false}}
 options: {"cache":false,"setCacheKey":false}

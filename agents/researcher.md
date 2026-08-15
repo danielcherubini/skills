@@ -1,7 +1,6 @@
 ---
 name: researcher
 description: Deep research agent that searches local code and the web to provide thorough analysis for design and planning decisions.
-thinking: medium
 mode: subagent
 model_kwargs: {"extra_body":{"cache_prompt":false}}
 options: {"cache":false,"setCacheKey":false}

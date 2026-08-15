@@ -1,7 +1,6 @@
 ---
 name: reviewer
 description: Reviews specs, plans, and code for quality, correctness, and completeness. Returns structured verdicts. Review only — never makes changes.
-thinking: high
 inheritProjectContext: "false"
 inheritSkills: "false"
 mode: subagent

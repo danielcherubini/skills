@@ -13,7 +13,7 @@ As you discuss, capture decisions and terminology as persistent artifacts:
 
 ## Hard Gate
 
-Do NOT write code or invoke implementation skills until design is approved.
+Do NOT write code, load the `implement` skill (or any implementation skill) until design is approved. This is a hard stop — and it does not lift into a continuation: even after approval, never flow into implementation on your own. The only path forward is the explicit next-step choice via `ask` below, and that choice never leads directly to `implement` (it goes to `specify` at most).
 
 ## Process
 

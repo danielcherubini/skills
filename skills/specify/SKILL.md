@@ -92,9 +92,27 @@ Then update `docs/plans/README.md`:
 
 **CRITICAL: Do NOT begin implementing any tasks in the plan. The `specify` skill ends once the plan is vetted and presented to the user. The plan is handed off to the `implement` skill, which will ask the user to confirm plan selection before executing.**
 
-Then tell the user the plan is ready, and immediately load the `implement` skill to begin implementation.
+**HARD BREAK — STOP here and ask. Do NOT continue into implementation on your own.**
 
-**Clear the todo list** — use `manage_todo_list` to remove all entries now that planning is complete.
+1. **Clear the todo list** — use `manage_todo_list` to remove all entries now that planning is complete.
+2. Tell the user the plan is ready (path + one-line summary).
+3. Get explicit confirmation with the `ask` tool:
+
+   ```
+   ask({
+     questions: [{
+       id: "proceed-to-implementation",
+       question: "The plan is ready at docs/plans/plan-NNN-<feature>.md. Would you like to proceed with implementation now?",
+       options: [
+         { label: "Yes — start implementation (load implement skill)" },
+         { label: "No — hold the plan for later" },
+         { label: "Revise the plan first" }
+       ]
+     }]
+   })
+   ```
+
+4. **Only if the user explicitly confirms**, load the `implement` skill. Otherwise stop and wait for the user to decide. Do NOT load `implement` or do any implementation work without that explicit confirmation.
 
 ## Common Mistakes
 
@@ -105,3 +123,4 @@ Then tell the user the plan is ready, and immediately load the `implement` skill
 | Skipping TDD steps in task template | Every task needs failing test → implement → pass |
 | Planning before design is agreed | Use `discuss` first to align on approach |
 | Too many tasks (10+) | Group related changes; aim for 3-7 tasks |
+| Sliding into implementation right after the plan | HARD BREAK — stop, ask via `ask`, and only load `implement` on explicit user confirmation |

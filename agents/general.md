@@ -1,7 +1,6 @@
 ---
 name: general
 description: General-purpose subagent for implementing a single task from an approved plan
-thinking: low
 mode: subagent
 subtask: "true"
 ---

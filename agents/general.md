@@ -24,14 +24,24 @@ You are the **General Subagent**. You execute ONE task at a time, then report ba
 ## Task Execution
 
 1. Read the task description carefully — it contains everything you need
-2. Write a failing test FIRST (TDD: RED)
-3. Implement the minimum to make it pass (TDD: GREEN)
-4. Refactor if needed (TDD: REFACTOR)
-5. Validate each step independently and in order:
+2. Create a todo list for the task via `manage_todo_list` (see Tracking below)
+3. Write a failing test FIRST (TDD: RED)
+4. Implement the minimum to make it pass (TDD: GREEN)
+5. Refactor if needed (TDD: REFACTOR)
+6. Validate each step independently and in order:
    - Format (e.g., `cargo fmt`, `prettier --check`)
    - Build (e.g., `cargo build`, `npm run build`)
    - Test (e.g., `cargo test`, `npm test`)
-6. Commit with the suggested message from the task
+7. Commit with the suggested message from the task
+
+## Tracking (Todo List)
+
+Every task you execute MUST be tracked in your own todo list — the user watches it live to see your progress.
+
+1. **Before any work:** create the todo list from the task's `Steps` checklist (each step = one todo). If the task has no explicit steps, derive todos from its "What to implement" items + validation + commit.
+2. **Mark each todo in-progress BEFORE starting it and completed IMMEDIATELY after finishing it** — one at a time, never in batches at the end.
+3. A todo stays in-progress if its command failed and you're fixing it; only mark completed when the step genuinely passed (e.g., tests green, commit made).
+4. When you report DONE, your todo list should show every todo completed.
 
 ## Loop Prevention (Authoritative)
 

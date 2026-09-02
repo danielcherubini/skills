@@ -67,6 +67,7 @@ Document the baseline results in your working notes so you know which failures w
 >
 > - **You MUST dispatch a `general` subagent for each task.**
 > - **DO NOT write code, edit files, or run builds directly in your own context.**
+> - **Update the todo list per task — in-progress BEFORE dispatch, completed IMMEDIATELY after DONE. Batching todo updates at the end is a failure.**
 > - If you skip dispatch, you forfeit TDD, per-task commits, and isolation — the entire point of this skill.
 > - The only exception is the Baseline Check (run before Task 1) and the final PR/code-review steps.
 
@@ -77,6 +78,7 @@ Before touching anything, confirm:
 - [ ] This is a task from the plan, not a tangent
 - [ ] No code has been written yet in this context
 - [ ] You are about to dispatch a `general` subagent (not do the work yourself)
+- [ ] You have marked this task **in-progress** in the todo list via `manage_todo_list` (required before Step 2 — do not skip; the user is watching this list to track progress)
 
 **Step 2 — Dispatch the subagent.**
 
@@ -95,6 +97,7 @@ subagent({
 ```
 
 The `general` agent already knows to:
+- Create and maintain its own todo list for the task's steps (in-progress before each step, completed immediately after)
 - Load TDD skill and follow RED-GREEN-REFACTOR
 - Validate format → build → test → lint in order
 - Commit with a descriptive message
@@ -107,9 +110,9 @@ After the `subagent()` call returns, confirm the subagent actually performed the
 - [ ] If you find yourself having done work inline, stop and re-dispatch the subagent immediately
 
 **Step 4 — Handle the subagent response:**
-- **DONE:** Mark task complete in todo list, move to next task
-- **NEEDS_CONTEXT:** Provide missing info, re-dispatch
-- **BLOCKED:** Assess blocker, provide help or escalate to user
+- **DONE:** Mark task complete in the todo list via `manage_todo_list` IMMEDIATELY — this is part of Step 4, not an afterthought. Do NOT defer it to the end of the plan; update the list before dispatching the next subagent.
+- **NEEDS_CONTEXT:** Provide missing info, re-dispatch (task stays in-progress)
+- **BLOCKED:** Assess blocker, provide help or escalate to user (task stays in-progress until resolved)
 
 **Important:** Dispatch tasks sequentially (not in parallel) to avoid file conflicts.
 

@@ -187,38 +187,34 @@ git checkout main
 git pull origin main
 ```
 
-### 5. Update Plan Index
+### 5. Delete the Roadmap Doc
 
-Move the plan file to the done/ archive:
-
-```bash
-mkdir -p docs/plans/done/
-mv docs/plans/plan-NNN-<feature>.md docs/plans/done/
-```
-
-Edit `docs/plans/README.md`:
-
-1. Remove the plan from the Backlog table
-2. Add the plan to the appropriate "Completed Plans" category (update link to `done/plan-NNN-<feature>.md`)
-3. Add the PR number and key git refs to the entry (if not already present)
-4. Update Quick Stats: increment completed count, decrement backlog count
-5. If the Backlog table is now empty, remove the section
-
-Commit the update (stage the plan file move + README changes together):
+The plan lived in `docs/roadmap/<feature>.md`. On ship, delete it — history lives in git:
 
 ```bash
-git add docs/plans/README.md docs/plans/done/plan-NNN-<feature>.md docs/plans/plan-NNN-<feature>.md
-git commit -m "docs: mark [plan-name] as completed (PR #[number])"
+rm docs/roadmap/<feature>.md
+git add docs/roadmap/<feature>.md
+git commit -m "docs: remove [feature] roadmap — shipped (PR #[number])"
 ```
 
-> **Important:** The `mv` in the step above is not tracked by git until staged. The `git add` must include both the new file (`done/plan-NNN-*.md`) and the deleted file (`plan-NNN-*.md`) so git records the rename — omitting them leaves the move uncommitted.
+If the plan contained durable knowledge (architecture notes, non-obvious constraints), fold that content into a `docs/features/<feature>.md` (present-tense, with front-matter) or a new `docs/decisions/NNNN-slug.md` before deleting. Don't preserve the plan file itself — no graveyards.
+
+```yaml
+# docs/features/<feature>.md front-matter
+---
+status: live
+last-verified: YYYY-MM-DD
+verified-by: <command or observation that proves it works>
+---
+```
 
 ### 6. Report
 
 Tell the user:
 - PR was merged (with link)
 - Local main is synced
-- Plan index is updated
+- Roadmap doc deleted
+- Any durable content folded into `docs/features/` or `docs/decisions/`
 - Any follow-up items noted in the plan
 
 ## Common Issues
@@ -234,7 +230,7 @@ Tell the user:
 | Bot review clean ("no new issues") | Continue to next step |
 | Merge conflicts on PR | Do NOT merge locally. Ask user to resolve on the branch. |
 | PR already merged | Skip merge step, sync main, update index |
-| Plan not in README.md | Add it to the Completed Plans section with the PR number |
+| Roadmap doc already deleted | Nothing to do — skip step 5 |
 
 ## Rules
 
@@ -242,6 +238,6 @@ Tell the user:
 - **Never skip unresolved review comments** — every comment must be resolved before merging, no exceptions unless the user explicitly says so
 - **Never force-merge a PR with failing CI** — always report the issue
 - **Always sync main after merge** — prevents stale branch issues
-- **Always update the plan index** — this is the single source of truth for plan status
+- **Always delete the roadmap doc after merge** — no graveyards; history lives in git
 - **Use squash merge by default** — keeps main history clean
 - **Wait for all active checks to complete** — poll until every `statusCheckRollup` entry reaches `COMPLETED` state before evaluating results

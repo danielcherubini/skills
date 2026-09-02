@@ -8,7 +8,7 @@ description: Use when the user says "let's discuss", "lets discuss", "I want to 
 Turn ideas into designs through collaborative dialogue before writing any code.
 
 As you discuss, capture decisions and terminology as persistent artifacts:
-- **ADRs** for non-obvious trade-offs (hard-to-reverse, surprising, real alternatives)
+- **Decisions** for non-obvious trade-offs (hard-to-reverse, surprising, real alternatives) — written to `docs/decisions/`
 - **CONTEXT.md** for resolved terminology (shared language that compounds across sessions)
 
 ## Hard Gate
@@ -63,9 +63,9 @@ Ask yourself: was any decision in this section **all three** of the following?
 
 If yes, offer to the user:
 
-> "That decision to [summary] feels worth recording as an ADR — it's [hard to reverse / surprising / a real trade-off]. Want me to capture it?"
+> "That decision to [summary] feels worth recording — it's [hard to reverse / surprising / a real trade-off]. Want me to capture it?"
 
-If the user agrees, write it to `docs/adr/NNNN-slug.md` using the format in [adr-format.md](./adr-format.md). Create `docs/adr/` lazily — only when the first ADR is needed.
+If the user agrees, write it to `docs/decisions/NNNN-slug.md` using the format in [adr-format.md](./adr-format.md). Create `docs/decisions/` lazily — only when the first decision is needed.
 
 If any of the three criteria is missing, skip the ADR. The obvious choice doesn't need documenting.
 
@@ -144,9 +144,15 @@ If the user chooses "Create implementation plan":
 2. Immediately load the `specify` skill and invoke it. The `specify` skill handles the entire planning process.
 
 If the user chooses "Save spec for later", THEN:
-1. Write it to `docs/specs/spec-NNN-<topic>-spec.md` (NNN is the next sequential number, zero-padded to 3 digits, matching the plan numbering convention)
-2. Add the new spec to `docs/plans/README.md` in the Specs → Draft section
-3. Update the Quick Stats (increment Total Specs and Draft count)
+1. Write it to `docs/roadmap/<topic>.md` with front-matter:
+   ```yaml
+   ---
+   status: considering
+   done-when: <observable exit condition — what does "shipped" look like?>
+   ---
+   ```
+2. The roadmap doc is the spec. No separate index. History lives in git.
+3. On ship: fold durable content into `docs/features/` (or a new decision) and delete the roadmap doc.
 
 ## Principles
 

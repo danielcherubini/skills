@@ -1,30 +1,41 @@
-# ADR Format
+# Decision Format
 
-ADRs live in `docs/adr/` and use sequential numbering: `0001-slug.md`, `0002-slug.md`, etc.
+Decisions live in `docs/decisions/` and use sequential numbering: `0001-slug.md`, `0002-slug.md`, etc.
 
-Create the `docs/adr/` directory lazily — only when the first ADR is needed.
+Create the `docs/decisions/` directory lazily — only when the first decision is needed.
 
 ## Template
 
 ```md
+---
+status: accepted
+date: YYYY-MM-DD
+superseded-by:
+---
+
 # {Short title of the decision}
 
 {1-3 sentences: what's the context, what did we decide, and why.}
 ```
 
-That's it. An ADR can be a single paragraph. The value is in recording *that* a decision was made and *why* — not in filling out sections.
+That's it. A decision can be a single paragraph. The value is in recording *that* a decision was made and *why* — not in filling out sections.
 
 ## Optional Sections
 
-Only include these when they add genuine value. Most ADRs won't need them.
+Only include these when they add genuine value. Most decisions won't need them.
 
-- **Status** frontmatter (`proposed | accepted | deprecated | superseded by ADR-NNNN`) — useful when decisions are revisited
 - **Considered Options** — only when the rejected alternatives are worth remembering
 - **Consequences** — only when non-obvious downstream effects need calling out
 
+## Rules
+
+- `docs/decisions/` is **append-only** — never edit a merged decision's body
+- To change course, add a new decision and set the old one's `superseded-by:` field
+- `status` is `accepted` or `superseded` — nothing else
+
 ## Numbering
 
-Scan `docs/adr/` for the highest existing number and increment by one.
+Scan `docs/decisions/` for the highest existing number and increment by one.
 
 ## When to Write an ADR
 

@@ -24,9 +24,14 @@ This skill expects an approved design spec. The spec comes from the conversation
 
 ## Plan Format
 
-Write to `docs/plans/plan-NNN-<feature>.md` (NNN is the next sequential number, zero-padded to 3 digits, e.g. `plan-001-<feature>.md`, `plan-002-<feature>.md`):
+Write to `docs/roadmap/<feature>.md` (kebab-case, named for the outcome, e.g. `docs/roadmap/user-auth.md`):
 
 ```markdown
+---
+status: committed
+done-when: <observable exit condition — what does "shipped" look like for a real user?>
+---
+
 # [Feature] Plan
 
 **Goal:** One sentence
@@ -79,16 +84,13 @@ Dispatch the **reviewer subagent** to review the plan:
 ```
 subagent({
   agent: "reviewer",
-  task: "Review type: plan execution review. Review the implementation plan at `docs/plans/plan-NNN-<feature>.md`. This is NOT a review of the plan file as a document — it is a review of the plan against the actual codebase that will be modified. Read every file the plan references (creates, modifies, tests). Read any additional files needed to verify the plan is correct: existing interfaces, types, imports, dependencies, build configs, and related modules. Report anything the plan should do differently: missing files, wrong paths, incorrect signatures, overlooked edge cases, integration gaps, or anything the executing agent would get wrong. If you need to read the whole codebase to be sure, do it. The plan will be executed verbatim by an agent with no context — leave no stone unturned."
+  task: "Review type: plan execution review. Review the implementation plan at `docs/roadmap/<feature>.md`. This is NOT a review of the plan file as a document — it is a review of the plan against the actual codebase that will be modified. Read every file the plan references (creates, modifies, tests). Read any additional files needed to verify the plan is correct: existing interfaces, types, imports, dependencies, build configs, and related modules. Report anything the plan should do differently: missing files, wrong paths, incorrect signatures, overlooked edge cases, integration gaps, or anything the executing agent would get wrong. If you need to read the whole codebase to be sure, do it. The plan will be executed verbatim by an agent with no context — leave no stone unturned."
 })
 ```
 
 Fix issues (max 3 rounds).
 
-Then update `docs/plans/README.md`:
-1. Add the new plan to the Backlog table (use the sequential number, e.g. `plan-001`)
-2. Increment the Total Plans count in Quick Stats
-3. If this plan supersedes an older one, move the old entry to the Superseded Plans section
+If this plan supersedes an older roadmap doc, update the old doc's front-matter (`status: considering` → note in the body that it was superseded) and delete it — history lives in git.
 
 **CRITICAL: Do NOT begin implementing any tasks in the plan. The `specify` skill ends once the plan is vetted and presented to the user. The plan is handed off to the `implement` skill, which will ask the user to confirm plan selection before executing.**
 
@@ -102,7 +104,7 @@ Then update `docs/plans/README.md`:
    ask({
      questions: [{
        id: "proceed-to-implementation",
-       question: "The plan is ready at docs/plans/plan-NNN-<feature>.md. Would you like to proceed with implementation now?",
+       question: "The plan is ready at docs/roadmap/<feature>.md. Would you like to proceed with implementation now?",
        options: [
          { label: "Yes — start implementation (load implement skill)" },
          { label: "No — hold the plan for later" },
@@ -124,3 +126,4 @@ Then update `docs/plans/README.md`:
 | Planning before design is agreed | Use `discuss` first to align on approach |
 | Too many tasks (10+) | Group related changes; aim for 3-7 tasks |
 | Sliding into implementation right after the plan | HARD BREAK — stop, ask via `ask`, and only load `implement` on explicit user confirmation |
+| Creating a plan index or done/ folder | No index, no graveyard — roadmap docs are self-contained; history lives in git |

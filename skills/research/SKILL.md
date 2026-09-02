@@ -211,18 +211,29 @@ After calling ask(), **stop**. Wait for the response.
 
 | User Choice | Action |
 |-------------|--------|
-| Write report to disk | Write the final structured report to a `.md` file on disk using `write`. Use a descriptive filename under `docs/research/` (e.g. `docs/research/vllm-speculative-decoding.md`). **Do NOT re-print the report to chat — the draft was already shown at Phase 4.5.** |
+| Write report to disk | Write the final structured report to a `.md` file on disk using `write`. Use a descriptive filename under `docs/research/` (e.g. `docs/research/vllm-speculative-decoding.md`). Include front-matter (see below). **Do NOT re-print the report to chat — the draft was already shown at Phase 4.5.** |
 | Discuss findings | Load the `discuss` skill, passing the research findings as context. Paste the key findings into the discussion so the agent can use the evidence to inform design decisions. The discussion picks up where research left off. |
 | Targeted deep-dive | Dispatch more researcher subagents on specific gaps, re-synthesise |
 | Add dimension | Dispatch new angle, re-synthesise |
 | Reframe | Return to Phase 1 with revised question |
 
-Final report format:
+Final report format (always include front-matter):
+
+```yaml
+---
+status: current          # current | superseded
+last-verified: YYYY-MM-DD
+verified-by: web research — [N] sources, [date]
+---
+```
+
 - Executive Summary
 - Findings (organised by question, every claim cited)
 - Evidence (source details, credibility)
 - Unresolved Contradictions (if any)
 - Gaps / What Remains Unknown
+
+If the research supersedes an older report, update the old file's `status: superseded` and add a link to the new one.
 
 ## Credibility Hierarchy
 

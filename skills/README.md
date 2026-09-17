@@ -14,7 +14,7 @@ The trick is structure. If you break work into the right stages, each one produc
 discuss → specify → implement → finish
 ```
 
-- **discuss** — collaborative design dialogue. Produces an approved spec with clear terminology, trade-offs, and acceptance criteria.
+- **discuss** — collaborative design dialogue. Produces an approved spec with clear terminology, trade-offs, and acceptance criteria, written to `docs/roadmap/`.
 - **specify** — turns the spec into independent, commitable tasks. Each task is self-contained: exact file paths, function names, test commands. Written for a context-free agent.
 - **implement** — executes the plan task by task. Subagents get one task each, run TDD, commit, report done.
 - **finish** — checks reviews and CI, fixes issues, merges, syncs main.
@@ -31,10 +31,10 @@ The [research](research/) and [review](review/) skills are pluggable gates you c
 
 | Skill | Trigger | What it does |
 |-------|---------|--------------|
-| [discuss](discuss/) | "let's discuss", "lets brainstorm" | Collaborative design dialogue before coding. Establishes shared terminology, proposes approaches with trade-offs, captures ADRs and glossary terms. Hard gate — no code until design is approved. |
-| [specify](specify/) | After design approval | Turns an approved design into a structured implementation plan with independent, commitable tasks. Writes to `docs/plans/`. Includes reviewer pass against the actual codebase. |
+| [discuss](discuss/) | "let's discuss", "lets brainstorm" | Collaborative design dialogue before coding. Establishes shared terminology, proposes approaches with trade-offs, captures ADRs and glossary terms, writes the approved spec to `docs/roadmap/`. Hard gate — no code until design is approved. |
+| [specify](specify/) | After design approval | Turns an approved design into a structured implementation plan with independent, commitable tasks. Writes to `docs/roadmap/` (replacing the spec in the same file). Includes reviewer pass against the actual codebase. |
 | [implement](implement/) | After plan is ready | Executes the plan: creates feature branch, runs baseline checks, dispatches subagents per task, handles reviews, opens PRs. |
-| [finish](finish/) | "merge this", "ship it", "finish up" | Completes the plan lifecycle: checks reviews and CI, fixes issues, merges the PR, syncs local main, updates the plan index. |
+| [finish](finish/) | "merge this", "ship it", "finish up" | Completes the plan lifecycle: checks reviews and CI, fixes issues, merges the PR, syncs local main, deletes the roadmap doc (history lives in git). |
 
 ## Quality and Debugging
 

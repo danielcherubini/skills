@@ -72,25 +72,21 @@ addition to general code quality.
 
 #### Find the active plan
 
-1. Check for a plans index:
+1. List the roadmap docs:
    ```bash
-   test -f docs/plans/README.md && echo "exists"
+   ls docs/roadmap/*.md 2>/dev/null
    ```
 
-2. If it exists, find the plan for the current branch. Look in the Backlog or In-Progress
-   section for a plan whose branch name or feature matches `git branch --show-current`:
+2. Match the current branch against the doc names — a `feature/<topic>` branch usually
+   corresponds to `docs/roadmap/<topic>.md`:
    ```bash
    git branch --show-current
-   grep -i "$(git branch --show-current | head -c 30)" docs/plans/README.md
    ```
+   A doc with front-matter `status: committed` is an executable plan; `status: approved` is a spec awaiting a plan.
 
-3. If you can identify the plan (e.g., `docs/plans/plan-003-auth-middleware.md`), read it.
+3. If you can identify the plan (e.g., `docs/roadmap/auth-middleware.md`), read it.
 
-4. If no plans index exists, try globbing:
-   ```bash
-   ls docs/plans/plan-*.md 2>/dev/null
-   ```
-   Pick the most recently modified one, or ask the user which plan applies.
+4. If no clear match, pick the most recently modified doc, or ask the user which plan applies.
 
 #### Build instructions from the plan
 
@@ -102,7 +98,7 @@ If a plan was found, distill it into a concise set of review instructions. Focus
 Do NOT paste the entire plan verbatim if it's very long. Summarize into a tight block:
 
 ```
-This branch implements plan-003-auth-middleware. Review for spec compliance:
+This branch implements docs/roadmap/auth-middleware.md. Review for spec compliance:
 
 Acceptance criteria:
 - JWT validation middleware rejects expired tokens with 401
@@ -123,7 +119,7 @@ Verify all planned files exist, acceptance criteria are met, and no planned work
 Append the instructions to the dispatch command:
 
 ```bash
-greptile review --agent --instructions "This branch implements plan-003-auth-middleware. Review for spec compliance: [distilled plan]" 2>&1
+greptile review --agent --instructions "This branch implements docs/roadmap/auth-middleware.md. Review for spec compliance: [distilled plan]" 2>&1
 ```
 
 If no plan was found, skip this phase — the review will run with default (code quality) focus.
@@ -332,7 +328,7 @@ When selected:
 | 1 | `git rev-parse --show-toplevel` | Confirm repo context |
 | 1 | `command -v greptile` | Check CLI installed |
 | 1 | `greptile whoami` | Check auth |
-| 1.5 | Read `docs/plans/plan-NNN-*.md` | Load plan for spec-compliance instructions |
+| 1.5 | Read `docs/roadmap/<topic>.md` | Load plan for spec-compliance instructions |
 | 2 | `greptile review --agent --instructions "..."` | Dispatch review with plan context |
 | 2 | `greptile review --resume` | Pick up latest unfinished review (fallback) |
 | 2 | `greptile review status` | Poll for completion (exit 3 = in progress) |

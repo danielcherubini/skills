@@ -8,10 +8,10 @@ The primary development workflow chains four skills together:
 discuss → specify → implement → finish
 ```
 
-1. **discuss** — Collaborative design dialogue before coding. Establishes shared terminology, proposes approaches with trade-offs, captures ADRs and glossary terms. Hard gate — no code until design is approved.
-2. **specify** — Turns the approved design into independent, commitable tasks with exact file paths, function names, and test commands. Written for a context-free agent. Outputs to `docs/plans/`.
+1. **discuss** — Collaborative design dialogue before coding. Establishes shared terminology, proposes approaches with trade-offs, captures ADRs and glossary terms, writes the approved spec to `docs/roadmap/`. Hard gate — no code until design is approved.
+2. **specify** — Turns the approved design into independent, commitable tasks with exact file paths, function names, and test commands. Written for a context-free agent. Outputs to `docs/roadmap/` (replacing the spec in the same file).
 3. **implement** — Executes the plan: creates feature branch, runs baseline checks, dispatches subagents per task (TDD-driven), handles reviews, opens PRs.
-4. **finish** — Checks reviews and CI, fixes issues, merges the PR, syncs local main, updates the plan index.
+4. **finish** — Checks reviews and CI, fixes issues, merges the PR, syncs local main, deletes the roadmap doc (history lives in git).
 
 This structure lets even small local models handle complex work reliably — each stage produces precise artifacts that the next stage can execute without guessing.
 

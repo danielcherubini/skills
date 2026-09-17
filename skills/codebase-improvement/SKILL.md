@@ -42,7 +42,7 @@ Read project context to ground the analysis:
 
 1. **`CONTEXT.md`** — domain glossary + engineering rules section (see CONTEXT.md Extension below). If missing, use all defaults and note in report.
 2. **`docs/adr/`** — read all ADRs (cap: 20 by mtime). If directory missing, skip silently and note in report.
-3. **`docs/plans/`** — read the 10 most recent plans by file modification time. If directory missing, skip silently and note in report.
+3. **`docs/roadmap/`** — read the 10 most recent roadmap docs by file modification time. If directory missing, skip silently and note in report.
 
 ### Phase 2: Scan (follow the research skill's dispatch pattern)
 
@@ -229,7 +229,7 @@ The skill loads these and applies them alongside the default lenses. When the di
 |-----------|----------|
 | No `CONTEXT.md` | Use all defaults. Note "not found, defaults applied" in report. |
 | No `docs/adr/` | Skip silently. Note "none" in report. |
-| No `docs/plans/` | Skip silently. Note "none" in report. |
+| No `docs/roadmap/` | Skip silently. Note "none" in report. |
 | Empty / trivial codebase (< 5 source files) | Write report with "No meaningful findings." Skip Phase 5. Offer Phase 6. |
 | Zero findings after scan | Write report with "No findings." Skip Phase 5. Phase 6 offers "Save for later" only. |
 | Research/review subagent fails | Note as a gap in the report. Continue with remaining findings. |

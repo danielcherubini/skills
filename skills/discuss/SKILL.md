@@ -10,6 +10,7 @@ Turn ideas into designs through collaborative dialogue before writing any code.
 As you discuss, capture decisions and terminology as persistent artifacts:
 - **Decisions** for non-obvious trade-offs (hard-to-reverse, surprising, real alternatives) — written to `docs/decisions/`
 - **CONTEXT.md** for resolved terminology (shared language that compounds across sessions)
+- **Spec** — once the design is approved, the full spec is written to `docs/roadmap/<topic>.md` (see After Approval)
 
 ## Hard Gate
 
@@ -90,32 +91,44 @@ If neither an ADR nor a terminology resolution applies, just move to the next se
 
 ## After Approval
 
-Once the design is approved by the user, present the complete spec in your response — do NOT write it to disk. The spec stays in the conversation and flows directly into the next step.
+Once the design is approved by the user, write the complete spec (already presented in step 6) to disk. The spec becomes a persistent artifact — the reviewer, the planner, and future sessions all work from the file, not from conversation memory.
 
-Use the `ask` tool to ask what happens next:
+1. Write the spec to `docs/roadmap/<topic>.md` (kebab-case) with front-matter:
+   ```yaml
+   ---
+   status: approved
+   done-when: <observable exit condition — what does "shipped" look like?>
+   ---
+   ```
+   If `docs/roadmap/<topic>.md` already exists, read it first. If its front-matter says `status: committed` (an in-flight plan), gate with `ask` before overwriting — confirm the replacement or use a different topic filename. Otherwise (an earlier spec), mention what you're replacing.
+   Commit the roadmap doc (`git add docs/roadmap/<topic>.md && git commit -m "docs: add <topic> spec"`) so the spec version is preserved in git history before the plan replaces it.
+   The roadmap doc is the spec. No separate index. History lives in git.
+   On ship: fold durable content into `docs/features/` (or a new decision) and delete the roadmap doc.
 
-```
-ask({
-  questions: [{
-    id: "next-step",
-    question: "Design approved. What would you like to do next?",
-    options: [
-      { label: "Run a reviewer" },
-      { label: "Create implementation plan" },
-      { label: "Save spec for later" },
-      { label: "Revise the design" }
-    ]
-  }]
-})
-```
+2. Use the `ask` tool to ask what happens next:
+
+   ```
+   ask({
+     questions: [{
+       id: "next-step",
+       question: "Design approved and saved to docs/roadmap/<topic>.md. What would you like to do next?",
+       options: [
+         { label: "Run a reviewer" },
+         { label: "Create implementation plan" },
+         { label: "Revise the design" },
+         { label: "No action for now" }
+       ]
+     }]
+   })
+   ```
 
 If the user chooses "Run a reviewer", THEN:
-1. Dispatch the **reviewer subagent**:
+1. Dispatch the **reviewer subagent** — the reviewer reads the spec from the file:
 
    ```
    subagent({
      agent: "reviewer",
-     task: "Review type: spec. Review the following spec: [paste the approved spec here]. Return a report categorized by severity. Do NOT call ask() — just return the report."
+     task: "Review type: spec. Review the spec at `docs/roadmap/<topic>.md`. Return a report categorized by severity. Do NOT call ask() — just return the report."
    })
    ```
 
@@ -136,23 +149,16 @@ If the user chooses "Run a reviewer", THEN:
    })
    ```
 
-3. Fix selected issues one at a time. Re-run the reviewer once after all fixes.
+3. Fix selected issues one at a time, applying each fix to `docs/roadmap/<topic>.md` so the file stays the source of truth. Re-run the reviewer once after all fixes — it reviews the updated file.
 4. After review is complete, re-ask the next-step question
 
 If the user chooses "Create implementation plan":
 1. **Clear the todo list** — use `manage_todo_list` to remove all entries now that discussion is complete.
-2. Immediately load the `specify` skill and invoke it. The `specify` skill handles the entire planning process.
+2. Immediately load the `specify` skill and invoke it. The `specify` skill reads the spec from `docs/roadmap/<topic>.md` and handles the entire planning process.
 
-If the user chooses "Save spec for later", THEN:
-1. Write it to `docs/roadmap/<topic>.md` with front-matter:
-   ```yaml
-   ---
-   status: considering
-   done-when: <observable exit condition — what does "shipped" look like?>
-   ---
-   ```
-2. The roadmap doc is the spec. No separate index. History lives in git.
-3. On ship: fold durable content into `docs/features/` (or a new decision) and delete the roadmap doc.
+If the user chooses "Revise the design": go back to the discussion process (from the section that needs rework). Once the revised design is approved, update `docs/roadmap/<topic>.md` with the new spec, then re-ask the next-step question.
+
+If the user chooses "No action for now": stop. The spec is saved at `docs/roadmap/<topic>.md` and can be picked up in a later session.
 
 ## Principles
 

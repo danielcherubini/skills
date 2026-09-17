@@ -20,11 +20,11 @@ Turn an approved design into a structured implementation plan with independent, 
 
 ## Input
 
-This skill expects an approved design spec. The spec comes from the conversation — it was already presented and approved during discussion. Do NOT read from a file unless one was explicitly saved earlier.
+This skill expects an approved design spec at `docs/roadmap/<topic>.md`, written by the `discuss` skill. Read the spec from that file. If the file does not exist (no discussion was run), ask the user for the spec, write it to `docs/roadmap/<topic>.md` with `status: approved` front-matter, then continue with planning. If the topic isn't already known (no discussion handed off, no path given) and more than one roadmap doc exists, ask the user which spec to plan.
 
 ## Plan Format
 
-Write to `docs/roadmap/<feature>.md` (kebab-case, named for the outcome, e.g. `docs/roadmap/user-auth.md`):
+Write the plan to the spec's existing file — `docs/roadmap/<topic>.md` (kebab-case, named for the outcome, e.g. `docs/roadmap/user-auth.md`). Keep the spec's filename; the plan replaces the spec content in the same file:
 
 ```markdown
 ---
@@ -84,13 +84,13 @@ Dispatch the **reviewer subagent** to review the plan:
 ```
 subagent({
   agent: "reviewer",
-  task: "Review type: plan execution review. Review the implementation plan at `docs/roadmap/<feature>.md`. This is NOT a review of the plan file as a document — it is a review of the plan against the actual codebase that will be modified. Read every file the plan references (creates, modifies, tests). Read any additional files needed to verify the plan is correct: existing interfaces, types, imports, dependencies, build configs, and related modules. Report anything the plan should do differently: missing files, wrong paths, incorrect signatures, overlooked edge cases, integration gaps, or anything the executing agent would get wrong. If you need to read the whole codebase to be sure, do it. The plan will be executed verbatim by an agent with no context — leave no stone unturned."
+  task: "Review type: plan execution review. Review the implementation plan at `docs/roadmap/<topic>.md`. This is NOT a review of the plan file as a document — it is a review of the plan against the actual codebase that will be modified. Read every file the plan references (creates, modifies, tests). Read any additional files needed to verify the plan is correct: existing interfaces, types, imports, dependencies, build configs, and related modules. Report anything the plan should do differently: missing files, wrong paths, incorrect signatures, overlooked edge cases, integration gaps, or anything the executing agent would get wrong. If you need to read the whole codebase to be sure, do it. The plan will be executed verbatim by an agent with no context — leave no stone unturned."
 })
 ```
 
 Fix issues (max 3 rounds).
 
-If this plan supersedes an older roadmap doc, update the old doc's front-matter (`status: considering` → note in the body that it was superseded) and delete it — history lives in git.
+The plan replaces the spec content in the same file — the front-matter moves from `status: approved` to `status: committed`. Commit the roadmap doc (`git add docs/roadmap/<topic>.md && git commit -m "docs: plan <topic>"`) so the plan version is preserved in git history. If this plan supersedes a separate older roadmap doc, delete it — history lives in git.
 
 **CRITICAL: Do NOT begin implementing any tasks in the plan. The `specify` skill ends once the plan is vetted and presented to the user. The plan is handed off to the `implement` skill, which will ask the user to confirm plan selection before executing.**
 
@@ -104,7 +104,7 @@ If this plan supersedes an older roadmap doc, update the old doc's front-matter 
    ask({
      questions: [{
        id: "proceed-to-implementation",
-       question: "The plan is ready at docs/roadmap/<feature>.md. Would you like to proceed with implementation now?",
+       question: "The plan is ready at docs/roadmap/<topic>.md. Would you like to proceed with implementation now?",
        options: [
          { label: "Yes — start implementation (load implement skill)" },
          { label: "No — hold the plan for later" },

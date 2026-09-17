@@ -16,9 +16,8 @@ Read the plan, create a feature branch, dispatch subagents per task, review the 
 
 If no plan file path is provided by the user:
 
-1. **Read the plans index** — Load `docs/plans/README.md` (or the project's equivalent plan index) to find available plans.
-2. **Identify candidates** — Collect all plans in the Backlog section (exclude ✅ COMPLETED, 🔁 SUPERSEDED, and any "remaining work" / roadmap items that lack a plan file).
-3. **Ask the user** which plan to execute:
+1. **Find candidate plans** — List `docs/roadmap/*.md`. A doc is an executable plan when its front-matter says `status: committed`; a `status: approved` doc is a spec awaiting a plan — not executable yet (the `specify` skill turns it into a plan). If `docs/roadmap/*.md` yields no candidates and `docs/plans/README.md` exists, fall back to the plans index instead (Backlog section; exclude ✅ COMPLETED, 🔁 SUPERSEDED, and items lacking a plan file).
+2. **Ask the user** which plan to execute:
 
 ```
 ask({
@@ -33,8 +32,8 @@ ask({
 })
 ```
 
-4. Always ask the user which plan to execute, even if only one candidate exists — do NOT skip the approval gate.
-5. Once selected, read the full plan file and continue to Branch Setup.
+3. Always ask the user which plan to execute, even if only one candidate exists — do NOT skip the approval gate.
+4. Once selected, read the full plan file and continue to Branch Setup.
 
 ## Branch Setup
 
@@ -203,13 +202,15 @@ Proceed to **Update Plan Index** below.
    EOF
    )"
    ```
-3. Load the `finish` skill to check PR status, merge to main, and update the plan index
+3. Load the `finish` skill to check PR status, merge to main, and complete the plan lifecycle (delete the roadmap doc)
 
-## Update Plan Index
+## Update Plan Index (legacy projects only)
 
-After a PR is opened, update `docs/plans/README.md`:
+Only if the project uses a plans index (`docs/plans/README.md` exists):
 1. Move the plan from the Backlog table to the appropriate Completed Plans category
 2. Add the PR number and key git commit refs to the entry
 3. Increment completed count in Quick Stats
 4. Commit this update with message: `docs: mark [plan-name] as completed`
 5. **Clear the todo list** — remove all remaining entries
+
+Roadmap-lifecycle projects have no index to update — the `finish` skill deletes the roadmap doc on merge (history lives in git).

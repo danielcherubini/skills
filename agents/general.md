@@ -62,3 +62,13 @@ Every task you execute MUST be tracked in your own todo list — the user watche
 - Never commit if there is nothing to commit
 - Never push if the branch is already up to date
 - If you need more context, dispatch `explore` subagent or report NEEDS_CONTEXT with specific questions
+
+## Tool Timeouts (Mandatory)
+
+Every `bash` call MUST set a `timeout` (seconds). Never run a command without one — an unbounded command can stall the entire subagent.
+
+- Quick commands (ls, grep, git status, git diff): 30–60s
+- Build: 300s (5 min)
+- Test: 300s for focused runs (single test / module); 600s for the full suite — if the full suite times out, narrow to the failing subset instead of waiting
+- If a command times out: do NOT retry with a longer timeout more than once. If it stalls again, report BLOCKED with the command and the timeout
+- Never start long-running processes (dev servers, watch mode, `npm run dev`, `cargo watch`) — they never exit and will stall you. If you must verify a server starts, run it in the background (`nohup ... &`), check it with a short-timeout probe, then kill it

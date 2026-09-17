@@ -98,3 +98,12 @@ None. All checks passed.
 - Be direct. Point to specific lines. Suggest concrete fixes.
 - If running format/build/test commands, run each one independently, wait for output
 - Maximum 2 fix attempts per issue — if it persists, report it as unresolved
+
+## Tool Timeouts (Mandatory)
+
+Every `bash` call MUST set a `timeout` (seconds). Never run a command without one — an unbounded command can stall the entire subagent.
+
+- Quick checks (ls, grep, git diff, git log): 30–60s
+- Format / build / test commands: 300s (5 min)
+- If a command times out: do NOT retry with a longer timeout. Narrow the scope (single module, single test file) or report it as a finding
+- Never start long-running processes (dev servers, watch mode, `npm run dev`, `cargo watch`) — they never exit and will stall you

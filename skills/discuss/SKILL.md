@@ -10,11 +10,48 @@ Turn ideas into designs through collaborative dialogue before writing any code.
 As you discuss, capture decisions and terminology as persistent artifacts:
 - **Decisions** for non-obvious trade-offs (hard-to-reverse, surprising, real alternatives) — written to `docs/decisions/`
 - **CONTEXT.md** for resolved terminology (shared language that compounds across sessions)
-- **Spec** — once the design is approved, the full spec is written to `docs/roadmap/<topic>.md` (see After Approval)
+- **Spec** — once the design is approved, the full spec is written to `docs/roadmap/<topic>.md` as a draft (see After Approval), then handed straight to the `specify` skill, which finalizes it (no "what next" ask in between)
+
+## Pre-check (run this first, before the design flow)
+
+Before starting the design flow, check `docs/roadmap/<topic>.md` for the current topic and branch on its front-matter `status`:
+
+- **No file** → proceed with the design flow (Process steps 0–6) as normal.
+- **File exists, `status: approved`** (a spec, no plan yet) → the design is already done; do NOT re-run the design flow. **Wording rule — spec ≠ plan:** in this skill a *spec* is the approved WHAT/WHY (behavior + design); a *plan* is the HOW-IN-ORDER (the specify skill's output: a numbered task sequence with per-task TDD steps and verification commands). When offering the plan step, word it as "expand the spec into the plan" — never "create the implementation plan" (a fresh spec was just written, so the latter reads like a redo). Ask:
+  ```
+  ask({
+    questions: [{
+      id: "next-step",
+      question: "The approved spec is at docs/roadmap/<topic>.md — the design is done, no plan (task-level) exists yet. What next?",
+      options: [
+        { label: "Plan it — expand the spec into the task-level implementation plan (load the specify skill; a new artifact, not a redo)" },
+        { label: "Run a reviewer on the spec" },
+        { label: "Revise the design" },
+        { label: "No action for now" }
+      ],
+      description: "Spec = WHAT/WHY (approved). Plan = HOW in order — numbered tasks with TDD steps and verification commands (the specify skill's output). Planning consumes the spec; it does not re-run it."
+    }]
+  })
+  ```
+- **File exists, `status` is NOT `approved`** (i.e. `committed` — a plan already exists) → do NOT re-run the design flow and do NOT offer "plan it" (a plan already exists). Ask:
+  ```
+  ask({
+    questions: [{
+      id: "approve-plan",
+      question: "A plan already exists at docs/roadmap/<topic>.md (status: committed). Approve the current plan?",
+      options: [
+        { label: "Yes — refine + approve it via the specify skill's full flow (load it)" },
+        { label: "No — hold the plan for later" },
+        { label: "Revise the plan first" }
+      ]
+    }]
+  })
+  ```
+  **Approving runs the plan through the `specify` skill's FULL flow — no shortcut.** The specify skill re-reads the plan, refines it (updating it with more info and the rules it carries), runs its reviewer, and its HARD BREAK is the final approval before `implement`. The specify skill's **output** — not this ask — is what gets approved. Do NOT load `implement` from this branch; the handoff to `implement` happens only inside the specify skill's own HARD-BREAK confirmation.
 
 ## Hard Gate
 
-Do NOT write code, load the `implement` skill (or any implementation skill) until design is approved. This is a hard stop — and it does not lift into a continuation: even after approval, never flow into implementation on your own. The only path forward is the explicit next-step choice via `ask` below, and that choice never leads directly to `implement` (it goes to `specify` at most).
+Do NOT write code, load the `implement` skill (or any implementation skill) until design is approved. This is a hard stop — and it does not lift into a continuation: even after approval, never flow into implementation on your own. The only path forward after approval is the immediate handoff to the `specify` skill (see After Approval); the user's next decision point is `specify`'s own HARD BREAK, and only that confirmation (or an explicit user request) ever leads to `implement`.
 
 ## Process
 
@@ -105,24 +142,11 @@ Once the design is approved by the user, write the complete spec (already presen
    The roadmap doc is the spec. No separate index. History lives in git.
    On ship: fold durable content into `docs/features/` (or a new decision) and delete the roadmap doc.
 
-2. Use the `ask` tool to ask what happens next:
+2. **Hand off to the `specify` skill — do NOT ask what happens next.** The spec on disk is a draft; the `specify` skill finalizes it. Immediately:
+   - **Clear the todo list** — use `manage_todo_list` to remove all entries now that discussion is complete.
+   - Load the `specify` skill and invoke it. It reads the draft spec from `docs/roadmap/<topic>.md` (`status: approved`) and handles the entire spec-finalization/planning process in the same file. Its HARD BREAK — not this skill — is where the user decides whether to proceed to `implement`. Do NOT ask "what next": the handoff is the answer.
 
-   ```
-   ask({
-     questions: [{
-       id: "next-step",
-       question: "Design approved and saved to docs/roadmap/<topic>.md. What would you like to do next?",
-       options: [
-         { label: "Run a reviewer" },
-         { label: "Create implementation plan" },
-         { label: "Revise the design" },
-         { label: "No action for now" }
-       ]
-     }]
-   })
-   ```
-
-If the user chooses "Run a reviewer", THEN:
+If the user explicitly asks to run a reviewer (before the handoff), THEN:
 1. Dispatch the **reviewer subagent** — the reviewer reads the spec from the file:
 
    ```
@@ -150,19 +174,15 @@ If the user chooses "Run a reviewer", THEN:
    ```
 
 3. Fix selected issues one at a time, applying each fix to `docs/roadmap/<topic>.md` so the file stays the source of truth. Re-run the reviewer once after all fixes — it reviews the updated file.
-4. After review is complete, re-ask the next-step question
+4. After review is complete, hand off to the `specify` skill (no re-ask).
 
-If the user chooses "Create implementation plan":
-1. **Clear the todo list** — use `manage_todo_list` to remove all entries now that discussion is complete.
-2. Immediately load the `specify` skill and invoke it. The `specify` skill reads the spec from `docs/roadmap/<topic>.md` and handles the entire planning process.
+If the user (before the handoff) asks to revise the design: go back to the discussion process (from the section that needs rework). Once the revised design is approved, update `docs/roadmap/<topic>.md` with the new spec, then hand off to the `specify` skill (no re-ask).
 
-If the user chooses "Revise the design": go back to the discussion process (from the section that needs rework). Once the revised design is approved, update `docs/roadmap/<topic>.md` with the new spec, then re-ask the next-step question.
-
-If the user chooses "No action for now": stop. The spec is saved at `docs/roadmap/<topic>.md` and can be picked up in a later session.
+If the user wants to stop before the handoff: stop. The spec is saved at `docs/roadmap/<topic>.md` and can be picked up in a later session — the pre-check's spec branch will offer the plan step then.
 
 ## Principles
 
-- Always use the `ask` tool for every decision point — clarifying questions, approach selection, section approval, and post-approval next steps
+- Always use the `ask` tool for every decision point — clarifying questions, approach selection, section approval. The one exception is the post-approval handoff: it goes straight to `specify` with no ask — the user's next decision point is `specify`'s HARD BREAK
 - One question per `ask` call
 - Never skip ahead to the next section without explicit user approval via `ask`
 - YAGNI — remove unnecessary features

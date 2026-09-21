@@ -20,7 +20,13 @@ Turn an approved design into a structured implementation plan with independent, 
 
 ## Input
 
-This skill expects an approved design spec at `docs/roadmap/<topic>.md`, written by the `discuss` skill. Read the spec from that file. If the file does not exist (no discussion was run), ask the user for the spec, write it to `docs/roadmap/<topic>.md` with `status: approved` front-matter, then continue with planning. If the topic isn't already known (no discussion handed off, no path given) and more than one roadmap doc exists, ask the user which spec to plan.
+This skill operates on `docs/roadmap/<topic>.md`. Read that file and branch on its front-matter `status`:
+
+- **No file** (no discussion was run) → ask the user for the spec, write it to `docs/roadmap/<topic>.md` with `status: approved` front-matter, then plan from scratch.
+- **File exists, `status: approved`** (a design spec, no plan yet) → plan from the spec (the normal case — the spec was written by the `discuss` skill, which hands off here directly after approval).
+- **File exists, `status: committed`** (a plan already exists) → **refine the existing plan; do NOT re-plan from scratch.** Read the existing plan and update it in place: fill gaps, add the information and rules this skill carries (concrete file paths, exact signatures/types, test steps, acceptance criteria, task breakdown), and keep what is already correct. This is the path taken when the `discuss` skill's "Approve the current plan?" routes back here. The file stays `status: committed` — you are improving the plan, not regenerating it.
+
+If the topic isn't already known (no discussion handed off, no path given) and more than one roadmap doc exists, ask the user which file to work on.
 
 ## Plan Format
 
@@ -90,7 +96,7 @@ subagent({
 
 Fix issues (max 3 rounds).
 
-The plan replaces the spec content in the same file — the front-matter moves from `status: approved` to `status: committed`. Commit the roadmap doc (`git add docs/roadmap/<topic>.md && git commit -m "docs: plan <topic>"`) so the plan version is preserved in git history. If this plan supersedes a separate older roadmap doc, delete it — history lives in git.
+In the normal case (input was `status: approved`), the plan replaces the spec content in the same file and the front-matter moves from `status: approved` to `status: committed`. In the refine case (input was already `status: committed`), the plan is updated in place and the `status` stays `committed` — you improved the existing plan, you did not regenerate it. Commit the roadmap doc (`git add docs/roadmap/<topic>.md && git commit -m "docs: plan <topic>"`) so the plan version is preserved in git history. If this plan supersedes a separate older roadmap doc, delete it — history lives in git.
 
 **CRITICAL: Do NOT begin implementing any tasks in the plan. The `specify` skill ends once the plan is vetted and presented to the user. The plan is handed off to the `implement` skill, which will ask the user to confirm plan selection before executing.**
 

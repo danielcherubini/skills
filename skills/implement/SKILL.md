@@ -16,7 +16,7 @@ Read the plan, create a feature branch, dispatch subagents per task, review the 
 
 If no plan file path is provided by the user:
 
-1. **Find candidate plans** — List `docs/roadmap/*.md`. A doc is an executable plan when its front-matter says `status: committed`; a `status: approved` doc is a spec awaiting a plan — not executable yet (the `specify` skill turns it into a plan). If `docs/roadmap/*.md` yields no candidates and `docs/plans/README.md` exists, fall back to the plans index instead (Backlog section; exclude ✅ COMPLETED, 🔁 SUPERSEDED, and items lacking a plan file).
+1. **Find candidate plans** — List `docs/roadmap/*.md`. A doc is an executable plan when its front-matter says `status: committed`; a `status: approved` doc is a spec awaiting a plan — not executable yet (the `specify` skill turns it into a plan).
 2. **Ask the user** which plan to execute:
 
 ```
@@ -147,7 +147,6 @@ Then follow the user's choice immediately — do NOT ask for additional confirma
 3. The review skill's Phase 8 will ask **Open a PR** or **Merge to main** and execute the chosen action:
    - **Open a PR** → The review skill opens the PR and reports the URL
    - **Merge to main** → The review skill loads the `finish` skill (see **Finish Plan** below)
-4. After the review skill completes, proceed to **Update Plan Index** below
 
 ### Greptile Review Loop
 
@@ -158,7 +157,6 @@ Then follow the user's choice immediately — do NOT ask for additional confirma
 3. The greptile skill's Phase 7 will ask **Open a PR** or **Merge to main** and execute the chosen action:
    - **Open a PR** → The greptile skill opens the PR and reports the URL
    - **Merge to main** → The greptile skill opens the PR, then loads the `finish` skill (see **Finish Plan** below)
-4. After the greptile skill completes, proceed to **Update Plan Index** below
 
 ### Open PR only
 
@@ -185,8 +183,6 @@ Report the PR URL(s) to the user.
 
 **Clear the todo list** — remove all remaining entries now that execution is complete.
 
-Proceed to **Update Plan Index** below.
-
 ### Finish Plan
 
 1. **Clear the todo list** — remove all remaining entries
@@ -203,14 +199,3 @@ Proceed to **Update Plan Index** below.
    )"
    ```
 3. Load the `finish` skill to check PR status, merge to main, and complete the plan lifecycle (delete the roadmap doc)
-
-## Update Plan Index (legacy projects only)
-
-Only if the project uses a plans index (`docs/plans/README.md` exists):
-1. Move the plan from the Backlog table to the appropriate Completed Plans category
-2. Add the PR number and key git commit refs to the entry
-3. Increment completed count in Quick Stats
-4. Commit this update with message: `docs: mark [plan-name] as completed`
-5. **Clear the todo list** — remove all remaining entries
-
-Roadmap-lifecycle projects have no index to update — the `finish` skill deletes the roadmap doc on merge (history lives in git).

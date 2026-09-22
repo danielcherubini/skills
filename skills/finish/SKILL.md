@@ -82,41 +82,34 @@ No PR required — validate the branch locally and merge:
 
 A PR already exists — validate via GitHub, then merge.
 
-### 1. Check Reviews and Comments FIRST
+### 1. Check Reviews and Comments (via `check-pr` in `general` subagent)
 
-Before checking anything else, inspect the human review state:
+> ⚠️ **DISPATCH GUARD — ALWAYS DISPATCH A GENERAL SUBAGENT**
+>
+> - **Dispatch a `general` subagent to run the `check-pr` skill.**
+> - **The `general` subagent inspects reviews/comments, implements fixes, validates with tests/lint, commits, pushes, replies to comments, and resolves review threads via GraphQL.**
+> - **DO NOT fix code, edit files, or run tests directly in the main agent context.**
 
-```bash
-gh pr view [PR-NUMBER] --json reviewRequests,reviews,comments
+**A. Dispatch the `general` subagent with the `check-pr` skill:**
+```typescript
+subagent({
+  agent: "general",
+  task: `Load the check-pr skill and check PR #${PR_NUMBER} for open review comments, bot feedback, or requested changes. Analyze unresolved threads, apply all required fixes, validate with tests, push, reply to comments, and resolve the review threads.`,
+  description: `Check PR #${PR_NUMBER} and resolve review comments`
+})
 ```
 
-**A. Check for pending human review requests:**
-Look at `reviewRequests` — any entries mean a human hasn't reviewed yet.
-
-**B. Check for unresolved review comments:**
-Look at `reviews` for:
-- `state: "COMMENTED"` — has comments that may need addressing
-- `state: "CHANGES_REQUESTED"` — blocking, must fix
-
-Look at `comments` for:
-- `isMinimized: false` — active comments (not resolved)
-- Comments from human reviewers (not bots) that ask for changes
-
-> **RULE: ALL comments must be resolved (minimized) before merging.** There is no "non-blocking" exception — every single unresolved comment blocks the merge. If the user wants to skip resolving a comment, they must explicitly say so (e.g., "ignore this comment," "non-blocking," "skip this one").
-
-**C. Decision gate — ask the user if there are pending reviews:**
-
+**B. Check for pending human review requests:**
+Inspect `reviewRequests`:
+```bash
+gh pr view [PR-NUMBER] --json reviewRequests
+```
 > If `reviewRequests` is non-empty (pending human reviewers):
 > - **STOP** and ask the user: "@X hasn't reviewed yet. Wait or merge anyway?"
 > - If user says wait, stop and report back
 > - If user says proceed, continue to Step 2
 
-> If there are `CHANGES_REQUESTED` reviews:
-> - **STOP** and fix the issues (see Step 1a below)
-
-> If there are `COMMENTED` reviews from bots or humans:
-> - Read the latest comment body — if it says "no new issues found" or similar, continue
-> - If it lists issues to fix, go to Step 1a
+> **RULE: ALL comments must be resolved (minimized) before merging.** There is no "non-blocking" exception — every single unresolved comment blocks the merge. If the user wants to skip resolving a comment, they must explicitly say so (e.g., "ignore this comment," "non-blocking," "skip this one").
 
 ### 2. Check CI and Mergeability
 
@@ -136,41 +129,29 @@ Verify all of:
 
 If any check is still running, wait (~30s) and re-check with the same command. Loop until all are `COMPLETED`. If CI is failing, go to Step 1a.
 
-### 1a. Fix PR Issues (loop)
+### 1a. Fix PR Issues (loop via `general` subagent)
 
-**A. Read each outstanding comment/issue** — understand what needs to change
+> ⚠️ **DISPATCH GUARD — DELEGATE ALL FIXES TO GENERAL SUBAGENT**
+>
+> - **Dispatch a `general` subagent to investigate failures, make code fixes, run validation, and push.**
+> - **DO NOT edit code directly in the main agent context.**
 
-**B. Fix on the feature branch:**
-```bash
-git checkout [feature-branch]
-# Make the fix
-git add -A && git commit -m "fix: address review comment — [summary]"
-git push origin [feature-branch]
+**A. Dispatch `general` subagent to fix the issue:**
+```typescript
+subagent({
+  agent: "general",
+  task: `Investigate and fix the CI failure or review issue on PR #${PR_NUMBER} on branch ${CURRENT_BRANCH}. Run tests to verify the fix, commit, and push.`,
+  description: `Fix CI/review issue on PR #${PR_NUMBER}`
+})
 ```
 
-**C. Respond to the comment:**
-```bash
-gh pr comment [PR-NUMBER] --body "Fixed — [explanation of what changed]"
-```
+**B. Re-check reviews & CI** — go back to Step 1 and Step 2.
 
-**D. Re-check reviews** — go back to Step 1 from the top (check reviews/comments first)
-
-**E. Loop until:**
+**C. Loop until:**
 - **All** review comments are resolved (minimized) — no exceptions
-- All CI checks pass
+- All CI checks reach `COMPLETED` with `SUCCESS` or `SKIPPED`
 - Review decision is `APPROVED` (or no review required)
 - PR is `MERGEABLE`
-
-**F. If a comment doesn't require a code change** (e.g., "nice work", general feedback):
-- Reply with `gh pr comment` acknowledging the feedback
-- **Still resolve the comment** — ask the commenter to resolve it, or if you have permissions and it's appropriate, resolve it yourself
-- Do NOT move on until the comment is resolved (minimized)
-
-**G. If you're blocked** (can't reproduce an issue, need clarification):
-- Comment on the PR asking for clarification
-- Report back to the user and stop
-
-> **CRITICAL:** Do NOT skip unresolved review comments or failing CI. Loop until everything is green. **Every comment must be resolved — there is no "non-blocking" category. If the user wants to leave a comment unresolved, they must explicitly say so.**
 
 ### 3. Merge the PR
 

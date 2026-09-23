@@ -1,145 +1,83 @@
 ---
 name: check-pr
-description: Use when checking a pull request for review comments, reviewer status/approvals, code reviews, or bot feedback, deciding how to address them with the ask tool, applying fixes, replying to comments, and resolving review threads.
+description: Use when checking a pull request for review comments, reviewer status, CI/approval status, or resolving code review feedback.
 ---
 
 # Check PR
 
-Check a pull request for open review comments, present options to the user with the `ask` tool, apply agreed fixes, reply to inline review threads, and resolve them.
+Orchestrate pull request inspection, resolution, and monitoring by delegating all execution tasks to **general subagents**. The main agent acts strictly as an orchestrator: launching subagents for investigation, presenting options to the user with `ask`, launching subagents to implement approved fixes and resolve threads, and launching subagents to watch PR and CI status.
 
 ---
 
-## Workflow
+## ⚠️ STRICT RULE: ZERO BASH IN MAIN AGENT
+
+> **CRITICAL DISPATCH GUARD:**
+> - **The main agent MUST NOT run any `gh`, `git`, or bash inspection/polling commands directly in the main session.**
+> - **DO NOT run `gh pr view`, `gh api graphql`, `git commit`, `sleep 20`, or any shell commands in the main agent context.**
+> - **All execution, querying, file reading, code editing, test running, and status polling MUST occur inside a `general` subagent.**
+> - The main agent's sole responsibilities are: (1) dispatching subagents, (2) reading their reports, (3) interacting with the user via `ask`, and (4) reporting the final outcome.
 
 ```
-1. Detect PR & repo
-       │
-2. Fetch reviewer status, unresolved review threads & reviews via GitHub API
-       │
-3. Analyze comments and propose fixes
-       │
-4. Ask user what to do using `ask` tool
-       │
-5. Implement selected fixes & run tests
-       │
-6. Commit & push changes
-       │
-7. Reply to each inline review comment & resolve the thread via GraphQL
-       │
-8. Report reviewer status & comment resolution summary
+Main Agent (Strict Orchestrator - ZERO BASH)
+  │
+  ├── 1. Launch [General Subagent: PR Checker]
+  │        ├── Detects PR, queries GraphQL, inspects code context
+  │        └── Returns structured inspection report
+  │
+  ├── 2. Prompt User (ask tool)
+  │        └── Presents findings to the user (if actionable items exist)
+  │
+  ├── 3. Launch [General Subagent: PR Fixer] (if fixes approved)
+  │        ├── Applies code changes & runs linters/tests
+  │        ├── Commits, pushes, posts replies & resolves GraphQL threads
+  │        └── Returns fix summary
+  │
+  └── 4. Launch [General Subagent: PR Watcher]
+           ├── Loops/polls internally until ALL CI & bot checks reach terminal completion
+           └── Returns final PR readiness report
 ```
 
 ---
 
-## Step 1: Detect PR and Repository
+## Workflow Phases
 
-Find the repository and current PR:
+### Phase 1: Launch Checking Subagent
 
-```bash
-# Get owner and repo
-gh repo view --json owner,name -q '.owner.login + "/" + .name'
+The main agent immediately dispatches a `general` subagent. If the PR number is not already known, the subagent detects it from the current branch.
 
-# Get PR for current branch (or ask user for PR number/URL)
-gh pr view --json number,title,url,headRefName
+#### Dispatch Call:
+```typescript
+subagent({
+  agent: "general",
+  task: `Check the pull request for the current branch (or PR #${PR_NUMBER} if known):
+1. Detect owner, repo, and PR number if not provided ('gh pr view --json number,title,url,headRefName').
+2. Fetch review decision, reviewer statuses (approved/changes requested/pending), CI check rollup, and all unresolved review threads using GitHub GraphQL:
+   gh api graphql -f query='query($owner: String!, $repo: String!, $pr: Int!) { repository(owner: $owner, name: $repo) { pullRequest(number: $pr) { id title url reviewDecision reviewRequests(first: 20) { nodes { requestedReviewer { ... on User { login } ... on Team { name } } } } latestReviews(first: 20) { nodes { author { login } state submittedAt } } reviewThreads(first: 50) { nodes { id isResolved isOutdated path line originalLine comments(first: 20) { nodes { id databaseId author { login } body createdAt } } } } } } }' -F owner="$OWNER" -F repo="$REPO" -F pr="$PR_NUMBER"
+3. For each unresolved review thread (where isResolved == false):
+   - Read the referenced file around the specified line to understand the context.
+   - Assess whether the feedback is valid, partially valid, or a false positive / nitpick.
+   - Formulate a recommended code fix or reply rationale.
+4. Output a comprehensive structured report containing:
+   - PR Metadata (number, title, branch, URL)
+   - Reviewer Status Table (reviewers, decision, pending human requests)
+   - CI / Check Runs Status Table
+   - Unresolved Comments List (thread ID, comment database ID, file, line, author, comment snippet, context excerpt, recommended action/fix)
+   - Overall recommendation`
+})
 ```
-
-If no PR is found on the current branch, ask the user for the PR number or URL using the `ask` tool.
 
 ---
 
-## Step 2: Fetch Reviewer Status, Unresolved Comments & Threads
+### Phase 2: User Decision via `ask` Tool
 
-Use GitHub GraphQL API to fetch the overall review decision, reviewer statuses, pending review requests, review threads, comments, and resolution status:
+The main agent parses the report returned by the checking subagent:
 
-```bash
-gh api graphql -f query='
-query($owner: String!, $repo: String!, $pr: Int!) {
-  repository(owner: $owner, name: $repo) {
-    pullRequest(number: $pr) {
-      id
-      title
-      url
-      reviewDecision
-      reviewRequests(first: 20) {
-        nodes {
-          requestedReviewer {
-            ... on User { login }
-            ... on Team { name }
-          }
-        }
-      }
-      latestReviews(first: 20) {
-        nodes {
-          author { login }
-          state
-          submittedAt
-        }
-      }
-      reviewThreads(first: 50) {
-        nodes {
-          id
-          isResolved
-          isOutdated
-          path
-          line
-          originalLine
-          comments(first: 20) {
-            nodes {
-              id
-              databaseId
-              author { login }
-              body
-              createdAt
-            }
-          }
-        }
-      }
-      reviews(first: 20) {
-        nodes {
-          id
-          author { login }
-          state
-          body
-          submittedAt
-        }
-      }
-    }
-  }
-}' -F owner="$OWNER" -F repo="$REPO" -F pr="$PR_NUMBER"
-```
+1. **If no actionable comments exist and PR is approved / passing checks:**
+   - Display the status summary to the user.
+   - If checks are still pending/running, proceed to Phase 4 (watching subagent).
 
-Alternatively, quickly check reviewer status with the CLI:
-```bash
-gh pr view --json reviewDecision,latestReviews,reviewRequests
-```
-
-### Reviewer Status Extraction:
-- **`reviewDecision`**: Overall PR approval state (`APPROVED`, `CHANGES_REQUESTED`, `REVIEW_REQUIRED`, or null).
-- **Submitted Reviews (`latestReviews`)**: List of reviewers and their latest state (`APPROVED`, `CHANGES_REQUESTED`, `COMMENTED`, `DISMISSED`).
-- **Pending Review Requests (`reviewRequests`)**: Reviewers (users or teams) who have been requested to review but have not yet submitted.
-
-Filter threads to those where:
-- `isResolved == false`
-- `comments.nodes` has at least one comment
-
-If there are no unresolved review threads and no actionable review comments, proceed directly to reporting the reviewer status in Step 8 (e.g. inform whether the PR is approved, awaiting review, or has changes requested).
-
----
-
-## Step 3: Analyze Comments and Formulate Options
-
-For each unresolved review comment:
-1. Identify the file (`path`), line number (`line`), author, and comment body.
-2. Read the referenced file around the specified line to understand the context.
-3. Formulate:
-   - **Assessment**: Is the feedback valid, partially valid, or a false positive / nitpick?
-   - **Recommended Action**: Proposed fix, or rationale for why it should be skipped/replied to without code changes.
-
----
-
-## Step 4: Ask the User Using the `ask` Tool
-
-Call the `ask` tool to present the findings to the user with clear options:
+2. **If actionable review comments exist:**
+   - Call the `ask` tool to present each finding to the user with clear options.
 
 ```typescript
 ask({
@@ -161,71 +99,71 @@ ask({
 
 ---
 
-## Step 5: Implement Fixes & Validate
+### Phase 3: Launch Fixing Subagent
 
-For every comment where the user selected "Apply proposed fix":
-1. Edit the relevant files.
-2. Run local linters and tests (e.g. `make lint`, `go test ./...`, `npm test`, `npm run check`).
-3. Ensure no regressions or broken builds.
+For any comments where the user selected "Apply proposed fix" or "Skip / keep as is (explain and resolve)", the main agent dispatches a `general` subagent.
 
----
+#### Dispatch Call:
+```typescript
+subagent({
+  agent: "general",
+  task: `Apply the approved review comment fixes and resolve the threads on PR #${PR_NUMBER}:
 
-## Step 6: Commit and Push Changes
+Approved actions:
+${USER_DECISIONS_AND_INSTRUCTIONS}
 
-1. Stage only modified files.
-2. Commit with conventional format referencing the ticket:
-   ```bash
-   git commit -m "<ticket>: address review comments on <topic>
-   
-   - <details of fix>"
-   ```
-3. Push to the remote branch:
-   ```bash
-   git push origin <branch>
-   ```
-
----
-
-## Step 7: Reply to Comments and Resolve Threads
-
-For each addressed review comment:
-
-### A. Reply to the Inline Comment (REST API)
-```bash
-gh api "repos/${OWNER}/${REPO}/pulls/${PR_NUMBER}/comments/${COMMENT_DATABASE_ID}/replies" \
-  -f body="Fixed in commit \`$(git rev-parse --short HEAD)\`: ${FIX_SUMMARY}"
-```
-
-### B. Resolve the Review Thread (GraphQL Mutation)
-```bash
-gh api graphql -f query='
-mutation($threadId: ID!) {
-  resolveReviewThread(input: { threadId: $threadId }) {
-    thread {
-      id
-      isResolved
-    }
-  }
-}' -F threadId="${THREAD_ID}"
+Instructions:
+1. Apply the specified code modifications to the corresponding files.
+2. Run project linters, type checks, and tests (e.g. npm test, make lint, pytest, cargo test, etc.) to verify fixes.
+3. Stage modified files and commit: 'git commit -m "<ticket/scope>: address review comments"'.
+4. Push changes: 'git push origin <branch>'.
+5. For each fixed comment:
+   - Reply via REST API: gh api "repos/${OWNER}/${REPO}/pulls/${PR_NUMBER}/comments/${COMMENT_DATABASE_ID}/replies" -f body="Fixed in commit \`\$(git rev-parse --short HEAD)\`: ${FIX_SUMMARY}"
+   - Resolve thread via GraphQL mutation: gh api graphql -f query='mutation($threadId: ID!) { resolveReviewThread(input: { threadId: $threadId }) { thread { id isResolved } } }' -F threadId="${THREAD_ID}"
+6. For skipped comments requiring resolution:
+   - Reply with explanation and resolve the review thread.
+7. Return a summary of applied fixes, commit SHA, test results, and resolved threads.`
+})
 ```
 
 ---
 
-## Step 8: Report Summary
+### Phase 4: Launch Watching Subagent
 
-Always report the **Reviewer Status** alongside any comment resolutions:
+To monitor ongoing CI runs, automated review bots (e.g. Greptile, GitHub Actions, typecheck), and approval transitions, the main agent dispatches a `general` subagent.
 
-### 1. Reviewer & Approval Status
-- **Overall Decision**: e.g. `APPROVED` (ready to merge), `CHANGES_REQUESTED`, or `REVIEW_REQUIRED` (pending approvals).
-- **Reviewers Table**:
-  - Reviewer (`@username` or team)
-  - State (`APPROVED`, `CHANGES_REQUESTED`, `COMMENTED`, `PENDING`)
-  - Notes / submitted date (e.g. bot score, waiting on human review)
+> ⚠️ **WATCHER REQUIREMENT:** The watcher subagent MUST NOT return prematurely while checks are in progress. It must actively poll until all checks reach terminal status (`COMPLETED`, `SUCCESS`, `FAILURE`).
 
-### 2. Review Comments & Action Summary (if applicable)
-A concise summary table of:
-- File and line
-- Comment summary
-- Action taken (Fixed / Skipped)
-- Reply posted and thread resolution status
-- Commit hash and PR link
+#### Dispatch Call:
+```typescript
+subagent({
+  agent: "general",
+  task: `Watch the status of PR #${PR_NUMBER} on repo ${OWNER}/${REPO} until ALL checks and reviews complete:
+1. Poll the PR status checks every 20 seconds until NO checks are in progress or queued:
+   while true; do
+     PENDING=$(gh pr view ${PR_NUMBER} --json statusCheckRollup --jq '[.statusCheckRollup[]? | select(.status == "IN_PROGRESS" or .status == "QUEUED" or .status == "PENDING" or .state == "PENDING")] | length')
+     if [ "$PENDING" -eq 0 ]; then
+       break
+     fi
+     echo "Waiting for $PENDING pending check(s)..."
+     sleep 20
+   done
+2. Once checks complete, inspect if any checks failed. If failed, fetch logs with 'gh run view <run-id> --log-failed'.
+3. Check for any newly submitted review comments or threads (e.g. from Greptile or reviewers) using GraphQL.
+4. Fetch final review decision and mergeability ('gh pr view ${PR_NUMBER} --json reviewDecision,latestReviews,mergeable').
+5. Return a complete status report:
+   - Final CI check status (all passed vs specific failures)
+   - Reviewer approval status (APPROVED / CHANGES_REQUESTED / REVIEW_REQUIRED)
+   - Any new unresolved comments created by bots/reviewers
+   - Final ready-to-merge readiness assessment`
+})
+```
+
+---
+
+## Summary & Reporting
+
+After the subagents finish:
+- The main agent presents the final consolidated status to the user.
+- If the PR is ready to merge, recommend or invoke `finish`.
+- If new review comments or CI failures appeared during the watch, prompt the user or dispatch another fixer subagent.

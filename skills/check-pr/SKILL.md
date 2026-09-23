@@ -1,6 +1,6 @@
 ---
 name: check-pr
-description: Use when checking a pull request for review comments, code reviews, or bot feedback, deciding how to address them with the ask tool, applying fixes, replying to comments, and resolving review threads.
+description: Use when checking a pull request for review comments, reviewer status/approvals, code reviews, or bot feedback, deciding how to address them with the ask tool, applying fixes, replying to comments, and resolving review threads.
 ---
 
 # Check PR
@@ -14,7 +14,7 @@ Check a pull request for open review comments, present options to the user with 
 ```
 1. Detect PR & repo
        │
-2. Fetch unresolved review threads & reviews via GitHub API
+2. Fetch reviewer status, unresolved review threads & reviews via GitHub API
        │
 3. Analyze comments and propose fixes
        │
@@ -26,7 +26,7 @@ Check a pull request for open review comments, present options to the user with 
        │
 7. Reply to each inline review comment & resolve the thread via GraphQL
        │
-8. Report final status
+8. Report reviewer status & comment resolution summary
 ```
 
 ---
@@ -47,9 +47,9 @@ If no PR is found on the current branch, ask the user for the PR number or URL u
 
 ---
 
-## Step 2: Fetch Unresolved Review Comments & Threads
+## Step 2: Fetch Reviewer Status, Unresolved Comments & Threads
 
-Use GitHub GraphQL API to fetch review threads, comments, and resolution status:
+Use GitHub GraphQL API to fetch the overall review decision, reviewer statuses, pending review requests, review threads, comments, and resolution status:
 
 ```bash
 gh api graphql -f query='
@@ -59,6 +59,22 @@ query($owner: String!, $repo: String!, $pr: Int!) {
       id
       title
       url
+      reviewDecision
+      reviewRequests(first: 20) {
+        nodes {
+          requestedReviewer {
+            ... on User { login }
+            ... on Team { name }
+          }
+        }
+      }
+      latestReviews(first: 20) {
+        nodes {
+          author { login }
+          state
+          submittedAt
+        }
+      }
       reviewThreads(first: 50) {
         nodes {
           id
@@ -92,11 +108,21 @@ query($owner: String!, $repo: String!, $pr: Int!) {
 }' -F owner="$OWNER" -F repo="$REPO" -F pr="$PR_NUMBER"
 ```
 
+Alternatively, quickly check reviewer status with the CLI:
+```bash
+gh pr view --json reviewDecision,latestReviews,reviewRequests
+```
+
+### Reviewer Status Extraction:
+- **`reviewDecision`**: Overall PR approval state (`APPROVED`, `CHANGES_REQUESTED`, `REVIEW_REQUIRED`, or null).
+- **Submitted Reviews (`latestReviews`)**: List of reviewers and their latest state (`APPROVED`, `CHANGES_REQUESTED`, `COMMENTED`, `DISMISSED`).
+- **Pending Review Requests (`reviewRequests`)**: Reviewers (users or teams) who have been requested to review but have not yet submitted.
+
 Filter threads to those where:
 - `isResolved == false`
 - `comments.nodes` has at least one comment
 
-If there are no unresolved review threads and no actionable review comments, inform the user that the PR has no open review comments.
+If there are no unresolved review threads and no actionable review comments, proceed directly to reporting the reviewer status in Step 8 (e.g. inform whether the PR is approved, awaiting review, or has changes requested).
 
 ---
 
@@ -187,7 +213,17 @@ mutation($threadId: ID!) {
 
 ## Step 8: Report Summary
 
-Provide a concise summary table of:
+Always report the **Reviewer Status** alongside any comment resolutions:
+
+### 1. Reviewer & Approval Status
+- **Overall Decision**: e.g. `APPROVED` (ready to merge), `CHANGES_REQUESTED`, or `REVIEW_REQUIRED` (pending approvals).
+- **Reviewers Table**:
+  - Reviewer (`@username` or team)
+  - State (`APPROVED`, `CHANGES_REQUESTED`, `COMMENTED`, `PENDING`)
+  - Notes / submitted date (e.g. bot score, waiting on human review)
+
+### 2. Review Comments & Action Summary (if applicable)
+A concise summary table of:
 - File and line
 - Comment summary
 - Action taken (Fixed / Skipped)

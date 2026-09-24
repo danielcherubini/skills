@@ -1,6 +1,6 @@
 ---
 name: implement
-description: Use when you have a written implementation plan to execute
+description: Use when you have a written implementation plan to execute or when given a Jira issue / ticket link to implement
 ---
 
 # Implement
@@ -12,11 +12,17 @@ Read the plan, create a feature branch, dispatch subagents per task, review the 
 > ⚠️ **Before each task: STOP → Dispatch a `general` subagent → Verify dispatch → Handle response.**
 > See the [Task Dispatch Protocol](#task-dispatch-protocol) for the mandatory per-task sequence.
 
-## Plan Selection
+## Plan Selection & Jira Ticket Inputs
 
-If no plan file path is provided by the user:
+### 1. When given a Jira ticket URL / key (e.g. `https://domain.atlassian.net/browse/KEY-123` or `KEY-123`):
+1. **Fetch the ticket via MCP**: Call `getJiraIssue` (from the Atlassian MCP) with the issue key to retrieve summary, description, and details.
+2. **Locate or extract the implementation plan**:
+   - Check if the ticket description or linked issues contain the implementation plan/tasks, or reference a plan file in the repository (e.g. in `claude-docs/` or `docs/`).
+   - If the ticket represents a work package from a roadmap/plan document in the repo, read that plan document.
+   - If tasks are directly specified in the ticket or plan doc, use them to set up the branch and todo list.
 
-1. **Find candidate plans** — List `docs/roadmap/*.md`. A doc is an executable plan when its front-matter says `status: committed`; a `status: approved` doc is a spec awaiting a plan — not executable yet (the `specify` skill turns it into a plan).
+### 2. When no plan or ticket is provided:
+1. **Find candidate plans** — List `docs/roadmap/*.md` or roadmap docs. A doc is an executable plan when its front-matter says `status: committed`; a `status: approved` doc is a spec awaiting a plan — not executable yet (the `specify` skill turns it into a plan).
 2. **Ask the user** which plan to execute:
 
 ```

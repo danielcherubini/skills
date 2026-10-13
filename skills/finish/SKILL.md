@@ -40,7 +40,7 @@ Main Agent (Finish Orchestrator)
 
 - After a plan's work is complete and ready to land on main
 - When the user says "merge this", "ship it", "finish up", or "land this"
-- After `implement` has opened a PR, or after `greptile` review loop is clean
+- After `implement` has opened a PR, or after a review loop is clean
 
 **Don't use when:**
 - Design isn't approved yet — use `discuss`

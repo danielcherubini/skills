@@ -134,7 +134,6 @@ ask({
     question: "All tasks complete. What would you like to do next?",
     options: [
       { label: "Review loop" },
-      { label: "Greptile review loop" },
       { label: "Open PR only" },
       { label: "Finish plan" }
     ]
@@ -153,16 +152,6 @@ Then follow the user's choice immediately — do NOT ask for additional confirma
 3. The review skill's Phase 8 will ask **Open a PR** or **Merge to main** and execute the chosen action:
    - **Open a PR** → The review skill opens the PR and reports the URL
    - **Merge to main** → The review skill loads the `finish` skill (see **Finish Plan** below)
-
-### Greptile Review Loop
-
-**Run Greptile review iteratively on the local branch until clean — do NOT open a PR during the loop.**
-
-1. Load the `greptile` skill and run it to completion (setup → review → parse → fix → re-run → loop until clean or max iterations)
-2. The greptile skill handles the review loop itself — let it run to completion
-3. The greptile skill's Phase 7 will ask **Open a PR** or **Merge to main** and execute the chosen action:
-   - **Open a PR** → The greptile skill opens the PR and reports the URL
-   - **Merge to main** → The greptile skill opens the PR, then loads the `finish` skill (see **Finish Plan** below)
 
 ### Open PR only
 

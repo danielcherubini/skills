@@ -26,6 +26,7 @@ Before starting the design flow, check `docs/roadmap/<topic>.md` for the current
       options: [
         { label: "Plan it — expand the spec into the task-level implementation plan (load the specify skill; a new artifact, not a redo)" },
         { label: "Run a reviewer on the spec" },
+        { label: "Mirror the spec to the issue tracker (step 1b)" },
         { label: "Revise the design" },
         { label: "No action for now" }
       ],
@@ -75,6 +76,8 @@ Before discussing design, establish shared language. This prevents the whole con
 
 ### 1. Explore context — check files, docs, recent commits
 
+Read `AGENTS.md` (or `CLAUDE.md`) before the first question: it carries the project's conventions, its validation bar (so `done-when` matches what CI actually enforces), and **which issue tracker it uses** (see *Which tracker?*). It is also the tiebreaker when the conversation and the repo disagree about a convention.
+
 ### 2. Research if needed — if the question requires comparing approaches, evaluating libraries, or understanding how something works, read the `research` skill and run Phases 1–3 (classify, dispatch, synthesise) yourself. Present a concise summary of findings — not the full report. Use the evidence to inform the approaches in step 3.
 
 ### 3. Ask clarifying questions — one at a time, use the `ask` tool with multiple-choice options
@@ -86,6 +89,19 @@ Before discussing design, establish shared language. This prevents the whole con
 ### 6. Once all sections are approved, present the final spec in full
 
 > **Always use the `ask` tool** for steps 3–5. Do not present a section and then continue to the next — wait for the user's explicit approval via `ask` before moving forward.
+
+## Which tracker?
+
+Resolve in this order and **stop at the first answer** — do not infer a tracker from a remote URL when a stated one exists.
+
+1. **`AGENTS.md` / `CLAUDE.md`** — an explicit tracker statement wins.
+2. **The tracker's own CLI**, when present and authenticated (`gh repo view --json url,nameWithOwner`, or the tool named by the project). It reports the *canonical* location.
+3. **An existing `issue:` front-matter key** in the roadmap doc or a sibling doc in `docs/roadmap/`.
+4. **Nothing found** → no tracker. Mention it once and carry on.
+
+**Do not derive the URL from `git remote`.** A renamed repo keeps answering on its old name forever — GitHub redirects so clones and pushes keep working — so the remote is the one signal that survives being wrong, and publishing to it files against a moved repo. `gh repo view` resolves the redirect; `git remote -v` does not.
+
+**Platform is whatever the project uses.** The mechanics above are GitHub-shaped because that is what this environment has a CLI for; a project on Jira/Linear/etc. names its own tool (e.g. the Atlassian MCP's `getJiraIssue` — the `implement` skill already takes Jira ticket links) and posts through it. Never assume GitHub from the presence of a `.git` directory.
 
 ## After Each Section Approval
 
@@ -139,8 +155,14 @@ Once the design is approved by the user, write the complete spec (already presen
    ```
    If `docs/roadmap/<topic>.md` already exists, read it first. If its front-matter says `status: committed` (an in-flight plan), gate with `ask` before overwriting — confirm the replacement or use a different topic filename. Otherwise (an earlier spec), mention what you're replacing.
    Commit the roadmap doc (`git add docs/roadmap/<topic>.md && git commit -m "docs: add <topic> spec"`) so the spec version is preserved in git history before the plan replaces it.
-   The roadmap doc is the spec. No separate index. History lives in git.
+   The roadmap doc is the spec. No separate *local* index — but it IS mirrored to the issue tracker (step 1b). "History lives in git" means no duplicate copy tree; it never means the spec stays invisible to reviewers.
    On ship: fold durable content into `docs/features/` (or a new decision) and delete the roadmap doc.
+
+1b. **Mirror the spec to the issue tracker.** The file is the source of truth; the issue is a review mirror, never the reverse.
+   - Resolve the tracker — see **Which tracker?** above. No tracker found, or `gh` unavailable / unauthenticated → say so out loud and continue. NEVER block the handoff on it, and never guess a URL.
+   - Reuse the issue already tied to this topic (an `issue:` key in the doc's front-matter, or an open issue whose title names it); otherwise open one titled the topic.
+   - Post the spec body as a comment with the front-matter stripped, then write the URL into the doc's front-matter as `issue: <url>` — into the spec commit (`--amend`) while it is still unpushed, else a follow-up commit.
+   - GitHub caps a comment near 65 KB. Over the cap, split across consecutive comments labelled `n of N` and say which part each holds — never truncate.
 
 2. **Hand off to the `specify` skill — do NOT ask what happens next.** The spec on disk is a draft; the `specify` skill finalizes it. Immediately:
    - **Clear the todo list** — use `manage_todo_list` to remove all entries now that discussion is complete.
@@ -173,7 +195,7 @@ If the user explicitly asks to run a reviewer (before the handoff), THEN:
    })
    ```
 
-3. Fix selected issues one at a time, applying each fix to `docs/roadmap/<topic>.md` so the file stays the source of truth. Re-run the reviewer once after all fixes — it reviews the updated file.
+3. Fix selected issues one at a time, applying each fix to `docs/roadmap/<topic>.md` so the file stays the source of truth. Re-run the reviewer once after all fixes — it reviews the updated file. If the spec was already mirrored to the tracker (step 1b), the posted copy is now stale: post the corrected body as a follow-up comment saying it supersedes the earlier one.
 4. After review is complete, hand off to the `specify` skill (no re-ask).
 
 If the user (before the handoff) asks to revise the design: go back to the discussion process (from the section that needs rework). Once the revised design is approved, update `docs/roadmap/<topic>.md` with the new spec, then hand off to the `specify` skill (no re-ask).

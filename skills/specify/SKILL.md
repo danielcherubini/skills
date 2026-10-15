@@ -98,6 +98,8 @@ Fix issues (max 3 rounds).
 
 In the normal case (input was `status: approved`), the plan replaces the spec content in the same file and the front-matter moves from `status: approved` to `status: committed`. In the refine case (input was already `status: committed`), the plan is updated in place and the `status` stays `committed` — you improved the existing plan, you did not regenerate it. Commit the roadmap doc (`git add docs/roadmap/<topic>.md && git commit -m "docs: plan <topic>"`) so the plan version is preserved in git history. If this plan supersedes a separate older roadmap doc, delete it — history lives in git.
 
+**Mirror the plan to the issue tracker** — the same step the `discuss` skill calls 1b; resolve the tracker there (AGENTS.md first, never `git remote`). The file is the source of truth, the tracker is the review mirror. Reuse the issue the spec was posted to (the doc's `issue:` front-matter key) — the plan is a NEW COMMENT on that issue, not a new issue; carry the key forward if the spec step never ran. Post the plan body with the front-matter stripped and note the commit SHA so reviewers can link the exact version. GitHub caps a comment near 65 KB — split into consecutive `n of N` comments over the cap, never truncate. No tracker / no `gh` → say so once and continue; this never gates the HARD BREAK.
+
 **CRITICAL: Do NOT begin implementing any tasks in the plan. The `specify` skill ends once the plan is vetted and presented to the user. The plan is handed off to the `implement` skill, which will ask the user to confirm plan selection before executing.**
 
 **HARD BREAK — STOP here and ask. Do NOT continue into implementation on your own.**

@@ -62,6 +62,7 @@ Every claim must be backed by a source — URL, file path, or video timestamp. D
 Each parallel subagent gets **one specific angle**. Good angles are:
 - Narrow enough to execute in one pass
 - Different enough that results don't overlap
+- **Independent** — each is fully writable before any other has returned
 - Together they cover the full question
 
 | Question type | Angles to dispatch |
@@ -98,26 +99,16 @@ Consult strategy guides as needed:
 
 ### Phase 2: Dispatch (main agent dispatches, never delegated)
 
-**Execution mode gate:** If more than one angle was planned, ask the user how to run them before dispatching:
+**Always parallel.** Call `subagent` once per angle, **all in the same response** — N angles means N tool calls in one message. Do NOT use the `tasks` array — call the tool N times with a single `task` each. Parallel tool calls issued from one response execute simultaneously and each gets its own visible UI block. Quick depth is simply one call.
 
-```typescript
-ask({
-  questions: [{
-    id: "execution-mode",
-    question: "Run the N research angles in parallel or in series?",
-    options: [
-      { label: "Parallel — all angles at once (default, fastest)" },
-      { label: "Serial — one angle at a time, each informed by the last" }
-    ],
-    recommended: 0,
-    description: "Parallel is faster and fine when angles are independent. Serial is better when a later angle depends on an earlier one's findings, or you want to review/steer between steps."
-  }]
-})
-```
+Never ask the user how to run the angles. Dispatch shape is not a user decision, and there is no case where serial beats parallel here: the angles are independent by construction (Phase 1 §3), and the one legitimate want behind serial — steer between steps — is what the Phase 4.5 hard stop is for, one round later and with every angle's findings in hand rather than one.
 
-Skip this ask for **quick** depth (single angle) — go straight to parallel dispatch (which is just one call).
+**The one exception is an explicit user instruction.** The rule forbids *polling* the user for a decision you can make, not overriding your default at their direction:
 
-**Parallel mode — call `subagent` once per angle, all in the same response.** Do NOT use the `tasks` array — call the tool N times with a single `task` each. Pi executes parallel tool calls from the same response simultaneously, and each gets its own visible block in the UI.
+- The user says nothing, or anything short of a dispatch instruction → **parallel. No ask.** Never treat a hint, a deadline, or your own guess about their budget as an instruction — that is the same offloading, inverted.
+- The user explicitly asks for serial / one-at-a-time → **comply for this run.** Name the trade-off in one line ("all five return labelled individually; you steer at the hard stop with everything in hand — say the word and I'll switch"), then run it their way. Do not re-ask, do not silently switch back, and do not decide an informed user is wrong.
+
+"Never ask" buys you a default, not the authority to overrule.
 
 ```typescript
 // Emit all of these as SEPARATE tool calls in ONE response:
@@ -132,22 +123,11 @@ subagent({ agent: "researcher", task: `Angle 3: [specific angle]\n\nFind: [exact
 subagent({ agent: "researcher", task: "Find: [specific thing]. Report findings with citations." })
 ```
 
-**Serial mode — call `subagent` once, wait for the result, then dispatch the next.** Each subsequent angle's task can reference prior findings (e.g. "Angle 2 builds on Angle 1's finding that X — investigate Y in that light"). Never batch serial calls into one response; each call must wait for the previous result before being issued.
-
-```typescript
-// Call 1 — dispatch, wait for result
-subagent({ agent: "researcher", task: `Angle 1: [specific angle]\n\nFind: [exactly what]\nSources: [web / local / specific URLs]\nReport: key facts with citations, gaps if any.` })
-
-// (after Angle 1 returns) Call 2 — informed by Angle 1's result
-subagent({ agent: "researcher", task: `Angle 2: [specific angle]. Context from Angle 1: [carry forward relevant finding]\n\nFind: [exactly what]\nSources: [web / local / specific URLs]\nReport: key facts with citations, gaps if any.` })
-
-// continue one at a time until all angles are covered
-```
+If an angle genuinely cannot be written until another has returned, that is **one angle with N steps**, not two angles — give it to a single researcher, who sequences its own steps. Two angles that depend on each other are an angle-design bug; fix the split.
 
 **Rules:**
 - One `subagent` call per angle — never bundle multiple angles into one call
 - Never use `tasks: [...]` for research — that hides all children inside one UI block
-- In serial mode, never fire the next call before the current one has returned
 - Be explicit about what sources to use (web, local files, specific URLs)
 - Do NOT tell researchers to plan, synthesise, or dispatch — they are leaves
 - **DO NOT add a `model` parameter to any subagent call.** The agent definition controls its own model. Adding `model` causes hallucinated model names that break the call.

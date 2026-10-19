@@ -53,7 +53,7 @@ Load the **research skill** and follow its dispatch pattern for code research:
 3. **Dispatch** parallel explore subagents — one per angle. Each subagent scans the codebase through its lens and returns findings with file paths and evidence.
 4. **Synthesize** all findings — merge duplicates across lenses (each finding assigned to its primary lens), classify by severity and confidence.
 
-**Ownership boundary:** This skill follows the research skill's dispatch pattern (classify → angles → dispatch → synthesize), including its Phase 2 parallel-vs-serial execution-mode `ask()` gate (since 8 angles > 1, this gate will trigger — ask before dispatching). It does NOT execute the research skill's Phase 4.5 `ask()` hard-stop — the main agent handles all user interaction in Phase 5. Subagents return findings only; they never call `ask()` or present to the user.
+**Ownership boundary:** This skill follows the research skill's dispatch pattern (classify → angles → dispatch → synthesize): 8 angles, all dispatched **in parallel in one response**, no execution-mode question. It does NOT execute the research skill's Phase 4.5 `ask()` hard-stop — the main agent handles all user interaction in Phase 5. Subagents return findings only; they never call `ask()` or present to the user.
 
 ### Phase 3: Deep-dive (follow the review skill's dispatch pattern)
 

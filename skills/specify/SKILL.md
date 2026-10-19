@@ -28,6 +28,25 @@ This skill operates on `docs/roadmap/<topic>.md`. Read that file and branch on i
 
 If the topic isn't already known (no discussion handed off, no path given) and more than one roadmap doc exists, ask the user which file to work on.
 
+## Parallelisation
+
+Decide this while writing the plan, not after. Emit a `## Parallelisation` verdict and a `**Parallel:**` line on **every** task — those two are all `implement` reads.
+
+Test each candidate wave against ALL SIX gates. A task joins a wave only if it clears every one; a task that clears none runs alone (which does not disqualify the tasks that do clear them).
+
+1. **Disjoint files** — `Files:` lists (Create + Modify + **Test**) share ZERO paths, pairwise.
+2. **No build-graph dependency** — A cannot `import`/`use` a symbol B creates in the same wave.
+3. **No shared mutable artifact** — lockfiles, migrations, generated code, shared fixtures, `mod.rs`/`__init__.py`/barrel files, route or middleware registration, config. **Check the commands, not just the file lists**: a task verified through `uv run` / `npm test` / `cargo test` can rewrite a lockfile or write snapshots without naming them in `Files:`.
+4. **Scoped verification suffices** — acceptance criteria provable by the task's own test file alone. Needs a full-suite run → serial.
+5. **No tree-wide mutation** — whole-tree formatters, lockfile regeneration, codegen.
+6. **Wave size ≤ 4** — beyond four, simultaneous builds contend for one `target/` / `node_modules/.cache` and the win flattens.
+
+**Why this is not just "are they independent?":** every child shares ONE working tree and ONE `.git/index` — there is no per-child worktree. Getting gates 1–3 wrong does not crash. It silently blends two tasks' half-finished edits into one commit, and makes a child's RED/GREEN check meaningless because it is measuring a sibling's in-progress code.
+
+Consult **[Parallelisation Guide](guides/guide-parallelisation.md)** for worked wave/serial examples, the near-miss checklist, and how to word each `**Parallel:**` line.
+
+**State the verdict even when it is SERIAL — with the reason.** A plan with no verdict is read by `implement` as SERIAL anyway; the difference is that a reason tells the next reader whether serial was decided or merely assumed.
+
 ## Plan Format
 
 Write the plan to the spec's existing file — `docs/roadmap/<topic>.md` (kebab-case, named for the outcome, e.g. `docs/roadmap/user-auth.md`). Keep the spec's filename; the plan replaces the spec content in the same file:
@@ -46,7 +65,22 @@ done-when: <observable exit condition — what does "shipped" look like for a re
 
 ---
 
+## Parallelisation
+
+**Verdict:** SERIAL — every task shares `src/routes.py`, so no two tasks have disjoint file sets.
+
+<!-- Exactly one verdict. The PARALLEL form:
+**Verdict:** PARALLEL — 2 waves
+- Wave 1: Task 1, Task 2, Task 3 (disjoint file sets, verified pairwise)
+- Wave 2: Task 4 (needs Task 1's `AuthError`, so it cannot join Wave 1)
+-->
+
+---
+
 ### Task N: [Name]
+
+**Parallel:** wave 1 — disjoint from Task 2 (`src/a.py`, `tests/test_a.py`) and Task 3 (`src/b.py`, `tests/test_b.py`)
+<!-- or: **Parallel:** none — shares `src/routes.py` with Task 2. Every task carries this line; it is the field `implement` dispatches on. -->
 
 **Context:**
 A short paragraph explaining *why* this task exists, what problem it solves, and how it fits into the overall feature. Include any decisions already made and why. Do not assume the agent knows anything about the conversation.
@@ -75,6 +109,7 @@ A precise description of the change. Include:
 - [ ] Run `[exact build command]` (e.g. `cargo build`)
   - Did it succeed? If not, fix and re-run before continuing.
 - [ ] Commit with message: "[suggested commit message]"
+  - **Wave tasks differ:** a task declared `**Parallel:** wave N` must NOT commit — the orchestrator commits its files after the wave (see *Parallel wave rules* below). Write the commit message here anyway; the orchestrator uses it verbatim.
 
 **Acceptance criteria:**
 - [ ] [Specific, verifiable outcome]
@@ -82,6 +117,17 @@ A precise description of the change. Include:
 ```
 
 Each task must be independently commitable. The agent executing it has no context beyond what is written here — be exhaustive.
+
+## Parallel wave rules
+
+The invariants the `**Parallel:**` lines encode — `implement` executes these, so a plan claiming PARALLEL must hold all four:
+
+- **Wave children do not commit.** They edit and report their file list; the orchestrator commits each task separately by explicit pathspec (`git commit -m "<msg>" -- <files>`), which a sibling's staged work cannot corrupt. Serial tasks commit as usual.
+- **In-wave verification is scoped** — own test file, own files formatted. Never a full suite or tree-wide formatter: siblings are mid-edit in the same tree.
+- **The full suite runs once per wave, afterwards, serially** — so acceptance criteria are provable by scoped-test-in-wave + suite-after-wave together.
+- **A wave is a barrier** — dispatch all of wave N together, wait for all, then wave N+1. A BLOCKED sibling holds the following waves.
+
+Full protocol, failure handling, and the child dispatch wording live in the **implement** skill's Parallel Execution Guide — that is `implement`'s to read at execution time, not yours.
 
 ## After Plan is Written
 
@@ -135,3 +181,8 @@ In the normal case (input was `status: approved`), the plan replaces the spec co
 | Too many tasks (10+) | Group related changes; aim for 3-7 tasks |
 | Sliding into implementation right after the plan | HARD BREAK — stop, ask via `ask`, and only load `implement` on explicit user confirmation |
 | Creating a plan index or done/ folder | No index, no graveyard — roadmap docs are self-contained; history lives in git |
+| Omitting the `## Parallelisation` verdict | `implement` reads a missing verdict as SERIAL. Declare SERIAL with a reason — a missed parallel opportunity is invisible; a wrong one is not |
+| Declaring a wave because the tasks are *logically* independent | Independence of features is not disjointness of paths. `routes.py`, a shared fixture, or a `mod.rs` collide regardless of how separate the features feel |
+| Letting a wave child run the full test suite | The result attributes a sibling's breakage to it. Scoped test in-wave, full suite after the wave |
+
+More parallelisation mistakes and worked examples: **[Parallelisation Guide](guides/guide-parallelisation.md)**.

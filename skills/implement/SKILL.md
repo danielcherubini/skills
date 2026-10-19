@@ -6,6 +6,8 @@ description: Use when you have a written implementation plan to execute or when 
 # Implement
 
 > 🚨 **CORE RULE: This skill dispatches `general` subagents to do the work. The main agent orchestrates — it does NOT write code, edit files, or run builds directly.**
+>
+> The single carve-out is the **wave commit + post-wave suite**: after a parallel wave, the orchestrator commits each task by pathspec and runs the full suite once (see *Running a wave*). Those two are the orchestrator's because no child inside a wave can safely do them — they all share one index and one tree. It is a narrow exception: never an inline code edit, never a fix to a child's implementation, never a build to "check" a child's work.
 
 Read the plan, create a feature branch, dispatch subagents per task, review the branch, open a PR.
 
@@ -74,9 +76,28 @@ Document the baseline results in your working notes so you know which failures w
 > - **DO NOT write code, edit files, or run builds directly in your own context.**
 > - **Update the todo list per task — in-progress BEFORE dispatch, completed IMMEDIATELY after DONE. Batching todo updates at the end is a failure.**
 > - If you skip dispatch, you forfeit TDD, per-task commits, and isolation — the entire point of this skill.
-> - The only exception is the Baseline Check (run before Task 1) and the final PR/code-review steps.
+> - The exceptions are: the Baseline Check (before Task 1); the wave commit + post-wave suite (*Running a wave* — a wave child cannot do these, it shares the index); and the final PR/code-review steps. Nothing else.
 
-### Per-Task Sequence (follow rigidly for every task)
+## Wave Planning (read the plan, then decide — do not guess)
+
+After the baseline check and **before dispatching Task 1**, read the plan's `## Parallelisation` section and every task's `**Parallel:**` line, then **independently re-verify it**. The plan's verdict is a proposal from a planner who has not seen the tree since it wrote the plan; you have just run the baseline and you are about to touch the files. Trust your check, not its label.
+
+**Verify per wave, mechanically:** collect each task's `Files:` list (Create + Modify + Test together); compare pairwise — any shared path (shared fixtures, snapshot dirs, `mod.rs`/`__init__.py`/barrel files, route/middleware registration, config, lockfiles, migrations) invalidates the wave; check the build graph for a task consuming a symbol another task in the same wave is creating; split waves larger than 4 (concurrent builds contend for one `target/` / `node_modules/.cache`).
+
+**Then decide, in this order:**
+
+1. **Integrity first.** No `## Parallelisation` section, a missing `**Parallel:**` line, or a line contradicting its own `Files:` list → **the plan's parallel claims are untrustworthy as a set: run fully serial.** Do not re-derive anything — with unreliable labels, any grouping you invent is speculation dressed as verification. Name the integrity failure you hit. **A missing verdict means SERIAL, never "ask the user."**
+2. **Declared wave passes the checks → run it.**
+3. **A wave failing a check dissolves that grouping, not the plan.** Re-derive from the `Files:` lists; survivors often form smaller valid waves (1+2 disjoint while 3 imports 1's symbol → Wave 1: {1,2}, Wave 2: {3}). The same mechanical check on a *smaller* grouping is verification; pushing a bigger one through on a hunch is embellishment. **Never *expand* a wave beyond what the pairwise check proves.**
+4. **Nothing clears → fully serial.**
+
+**State your mode in one line, then proceed — no `ask`; this is your decision to make.** Name the collision or the verification: `Executing SERIALLY — Tasks 2 and 4 both modify src/routes.py, so the plan's Wave 1 is invalid.` / `Executing in 2 waves — Wave 1: Tasks 1, 2 (verified disjoint); Wave 2: Task 3 (imports Task 1's Cart).` A bare "going parallel now" is not a mode statement — **the reason is what lets the user catch you being wrong.**
+
+Full protocol with worked examples, failure handling, and the BLOCKED-sibling sequence: **[Parallel Execution Guide](guides/guide-parallel-execution.md)**.
+
+## Per-Task Sequence (follow rigidly for every task)
+
+Applies to every task, serial or in a wave — a wave just means several of these run concurrently, each in its own child. Steps 1–4 are per-task; the wave barriers are per-wave (*Running a wave*).
 
 **Step 1 — STOP & Verify.**
 Before touching anything, confirm:
@@ -105,23 +126,46 @@ The `general` agent already knows to:
 - Create and maintain its own todo list for the task's steps (in-progress before each step, completed immediately after)
 - Load TDD skill and follow RED-GREEN-REFACTOR
 - Validate format → build → test → lint in order
-- Commit with a descriptive message
+- Commit with a descriptive message — **unless the task text forbids committing** (wave tasks do; see *Running a wave*). Its default is to commit, so a wave dispatch must say so explicitly or it will commit and blend a sibling's files into its commit.
 - Report DONE | BLOCKED | NEEDS_CONTEXT
 
 **Step 3 — Verify dispatch happened.**
 After the `subagent()` call returns, confirm the subagent actually performed the work:
-- [ ] The response includes file edits, test runs, or commits from the subagent
+- [ ] The response includes file edits, test runs, or commits from the subagent (a **wave** task reports file edits and scoped test runs and deliberately has NO commit — its commit comes from you; an absence of commit there is correct, not a skipped step)
 - [ ] You did NOT write any code, edit files, or run builds in your own context
 - [ ] If you find yourself having done work inline, stop and re-dispatch the subagent immediately
 
 **Step 4 — Handle the subagent response:**
-- **DONE:** Mark task complete in the todo list via `manage_todo_list` IMMEDIATELY — this is part of Step 4, not an afterthought. Do NOT defer it to the end of the plan; update the list before dispatching the next subagent.
+- **DONE:** Mark task complete in the todo list via `manage_todo_list` IMMEDIATELY — this is part of Step 4, not an afterthought. Do NOT defer it to the end of the plan; update the list before dispatching the next subagent. In a wave, mark each task complete only once *you* have committed its files (Step 2 of *Running a wave*) — a returned-but-uncommitted task is not done.
 - **NEEDS_CONTEXT:** Provide missing info, re-dispatch (task stays in-progress)
 - **BLOCKED:** Assess blocker, provide help or escalate to user (task stays in-progress until resolved)
 
-**Important:** Dispatch tasks sequentially (not in parallel) to avoid file conflicts.
+**Important:** Default to dispatching tasks **sequentially** — one response, one task, wait. Run them concurrently ONLY when *Wave Planning* has verified a wave for them. The hazard is not the dispatch mechanism but the shared working tree: two children editing one file, one shared fixture, or one `.git/index` produce a commit that is neither task's work and a RED/GREEN check that is measuring a sibling. If you have not explicitly verified disjoint file sets, you are running serially.
 
 > 🔁 **If you catch yourself doing work inline instead of dispatching — stop, reset, and dispatch the subagent.** This is the #1 failure mode of this skill; do not let it happen.
+
+### Running a wave
+
+**One response, one `subagent` call per task in the wave.** Parallel tool calls from a single response execute concurrently — N tasks take about the wall-clock of one, not N. Emitting them in separate responses is serial dispatch wearing a wave costume.
+
+Every wave dispatch must carry these additions to the usual task text — the numbered deviations override the `general` agent's defaults, so state them explicitly:
+
+```
+subagent({
+  agent: "general",
+  task: "[FULL TEXT of task from plan]\n\nContext: [where this fits, what's already done]\n\nPARALLEL WAVE — two deviations from your defaults:\n1. DO NOT COMMIT. Leave your changes in the working tree and report the exact files you touched. The orchestrator commits your task with its own message. (A commit here would sweep a sibling's half-finished files into your commit — you share one index.)\n2. VERIFY SCOPED ONLY. Run only your own test file/module and format only your own files. Do NOT run the full suite, a whole-tree formatter, or a lockfile regeneration — siblings are mid-edit in this same tree, so a full-suite result measures everyone at once and cannot tell you whether YOUR code is broken.\nReport DONE with the file list."
+})
+```
+
+Then, for the wave as a unit:
+
+1. **Wait for all of them** — the wave is a barrier. Do not start wave N+1 while any wave-N task is outstanding.
+2. **Commit each task separately, with an explicit pathspec**, using the plan's commit message for that task, one at a time in plan order: `git commit -m "<task N message>" -- <task N files>`. The pathspec is what makes this safe — never `git commit -a`, never `git add .`.
+3. **Run the full suite once, serially**, now that nothing is moving. This is the integration check no scoped in-wave test can provide. A failure here is yours to resolve before wave N+1 — usually the seam between two siblings' work, which neither child could see. Diagnose by reading and bisecting, then fix by re-dispatching: **you may not type the fix yourself** (CORE RULE carve-out covers committing and this suite run, nothing else).
+4. **Mark every task complete individually**, and only once you have committed its files.
+5. **A BLOCKED sibling holds the wave.** Commit the completed tasks (they were written to be independently commitable), set the blocked task's partial edits aside so the tree represents only what you committed, then resolve or escalate before wave N+1. Do not route around it.
+
+Serial tasks are unchanged: dispatch one, let it commit as usual, wait, verify, next.
 
 ## After All Tasks Complete
 

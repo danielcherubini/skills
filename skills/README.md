@@ -11,11 +11,13 @@ This pipeline was built around one belief: **you should be able to run small, op
 The trick is structure. If you break work into the right stages, each one produces artifacts precise enough that any capable model — even a small one — can execute its part without guessing. No chain-of-thought fluff, no vague prompts, no context bleed between tasks.
 
 ```
-discuss → specify → implement → finish
+Small scope: entry → specify → implement → review → finish
+Large scope: entry → roadmap → ( specify → implement per task, in waves ) → review → finish
 ```
 
 - **discuss** — collaborative design dialogue. Produces an approved spec with clear terminology, trade-offs, and acceptance criteria, written to `docs/roadmap/`.
-- **specify** — turns the spec into independent, commitable tasks. Each task is self-contained: exact file paths, function names, test commands. Written for a context-free agent.
+- **roadmap** — (large scope only) decomposes an approved block into N tasks, computes a dependency graph, groups them into waves on one branch, and runs autonomously. Drives `specify` in consumed mode per task.
+- **specify** — turns the spec (or one roadmap task) into independent, commitable tasks. Each task is self-contained: exact file paths, function names, test commands. Written for a context-free agent.
 - **implement** — executes the plan task by task. Subagents get one task each, run TDD, commit, report done.
 - **finish** — checks reviews and CI, fixes issues, merges, syncs main.
 
@@ -27,14 +29,26 @@ The [research](research/) and [review](review/) skills are pluggable gates you c
 
 ---
 
+## Entry routing
+
+Which skill the pipeline starts from — and whether it routes to `roadmap` or straight to `specify`:
+
+| Entry | Default target | Ask? |
+|-------|----------------|------|
+| **codebase-improvement** | → `roadmap` | never — an approved audit backlog is inherently multi-task |
+| **discuss** | → `specify` | only when HUGE: ≥3 independent items, or won't fit one PR / spans sessions |
+| **research** | → nothing (informs a decision) | only if findings imply multiple implementation tracks → offer roadmap |
+| **any** + "run unattended / do all these / keep going across sessions" | → `roadmap` | no ask — explicit override |
+
 ## Development Workflow
 
 | Skill | Trigger | What it does |
 |-------|---------|--------------|
 | [discuss](discuss/) | "let's discuss", "lets brainstorm" | Collaborative design dialogue before coding. Establishes shared terminology, proposes approaches with trade-offs, captures ADRs and glossary terms, writes the approved spec to `docs/roadmap/`. Hard gate — no code until design is approved. |
-| [specify](specify/) | After design approval | Turns an approved design into a structured implementation plan with independent, commitable tasks. Writes to `docs/roadmap/` (replacing the spec in the same file). Includes reviewer pass against the actual codebase. |
+| [specify](specify/) | After design approval | Turns an approved design into a structured implementation plan with independent, commitable tasks. Writes to `docs/roadmap/` (or to the per-task `target:` in consumed mode). Includes reviewer pass against the actual codebase. |
+| [roadmap](roadmap/) | "work through all of these", "do this autonomously", "break this into tasks", "keep going across sessions" | Coarse-grain driver: decomposes an approved block into N tasks, computes a dependency graph, groups them into waves on one branch, runs autonomously (status file = memory), drives `specify` in consumed mode per task. |
 | [implement](implement/) | After plan is ready | Executes the plan: creates feature branch, runs baseline checks, dispatches subagents per task, handles reviews, opens PRs. |
-| [finish](finish/) | "merge this", "ship it", "finish up" | Completes the plan lifecycle: checks reviews and CI, fixes issues, merges the PR, syncs local main, deletes the roadmap doc (history lives in git). |
+| [finish](finish/) | "merge this", "ship it", "finish up" | Completes the plan lifecycle: checks reviews and CI, fixes issues, merges the PR, syncs local main, deletes the whole `docs/roadmap/<feature>-*` family (history lives in git). |
 
 ## Quality and Debugging
 
@@ -81,7 +95,11 @@ The [research](research/) and [review](review/) skills are pluggable gates you c
 
 1. **Auto-detection** — The agent reads the `description` field in each skill's frontmatter to decide when to load it
 2. **Manual reference** — You can explicitly ask the agent to use a skill by name
-3. **Chaining** — Skills naturally flow into each other (e.g., `discuss` → `specify` → `implement` → `finish`)
+3. **Chaining** — Skills naturally flow into each other:
+   ```
+   Small scope: entry → specify → implement → review → finish
+   Large scope: entry → roadmap → ( specify → implement per task, in waves ) → review → finish
+   ```
 
 ## Adding New Skills
 

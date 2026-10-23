@@ -147,15 +147,37 @@ git pull origin main
 
 ### 5. Clean Up Roadmap Doc & Final Report
 
-Delete the feature roadmap/plan doc (history lives in git):
+Delete the whole feature roadmap family (plan/spec, status, task plans, follow-ups — history lives in git).
+**Fold any `${FEATURE_NAME}-follow-ups.md` content into `docs/features/` or an ADR FIRST** — it is deleted here too.
 
 ```bash
-if [ -f "docs/roadmap/${FEATURE_NAME}.md" ]; then
-  git rm "docs/roadmap/${FEATURE_NAME}.md"
+# Derive from CURRENT_BRANCH (captured at step 0) — NOT `git branch --show-current`, which by now
+# returns `main` because step 4 already checked it out. An empty value must abort, never glob.
+# Run this block in the SAME shell as step 0, or re-set CURRENT_BRANCH before it.
+FEATURE_NAME="${FEATURE_NAME:-$(printf '%s' "$CURRENT_BRANCH" | sed 's|^[^/]*/||')}"
+FEATURE_NAME="${FEATURE_NAME:?set FEATURE_NAME before cleanup}"
+removed=0
+for f in "docs/roadmap/${FEATURE_NAME}.md" \
+         "docs/roadmap/${FEATURE_NAME}-status.md" \
+         "docs/roadmap/${FEATURE_NAME}-follow-ups.md" \
+         docs/roadmap/"${FEATURE_NAME}"-task[0-9][0-9]*.md; do
+  [ -e "$f" ] || continue
+  # `rm`, not `git rm`: the status file and task plans are written by the roadmap run and are
+  # frequently UNTRACKED or locally modified, which `git rm` refuses without -f.
+  rm -f -- "$f"
+  removed=1
+done
+# `add -u` records the deletions of TRACKED files only — never stages an untracked file.
+[ "$removed" -eq 1 ] && git add -u -- docs/roadmap
+# Only commit when something was actually removed; an unconditional commit fails on a no-op
+# feature name and would leave `git push` to run against a stale commit.
+if ! git diff --cached --quiet; then
   git commit -m "docs: remove ${FEATURE_NAME} roadmap — shipped (PR #${PR_NUMBER})"
   git push origin main
 fi
 ```
+
+The glob names each roadmap artifact explicitly (`<feature>.md`, `-status`, `-follow-ups`, `-taskNN`), so a sibling like `user-auth-v2.md` is never touched and the glob can never widen to `docs/roadmap/*.md`. If `docs/roadmap/<feature>.md` does not exist (a roadmap run whose entry was `codebase-improvement` or `research` has no spec file), the matching entries are simply skipped.
 
 If the plan contained durable architectural decisions, fold them into `docs/features/<feature>.md` or `docs/decisions/` before deleting.
 

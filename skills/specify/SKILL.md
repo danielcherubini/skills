@@ -18,9 +18,31 @@ Turn an approved design into a structured implementation plan with independent, 
 - Idea isn't fleshed out yet — use `discuss` first
 - Change is small enough to implement directly (single file, obvious fix)
 
+## Invocation Modes
+
+This skill runs in one of two modes. The mode is chosen by an **explicit marker in the invoking text** — never inferred from the filesystem.
+
+### Standalone mode (default)
+
+The behavior described in the rest of this document, unchanged: full flow → reviewer vet (max 3 rounds) → **HARD BREAK** → `ask` → optionally load the `implement` skill. Use when a user or entry skill loads `specify` directly.
+
+### Consumed mode
+
+Entered **only** when the invoking task text contains the exact marker `SPECIFY CONSUMED MODE`. Used by the `roadmap` skill, which runs `specify` once per task. In consumed mode:
+
+- Plan exactly **ONE task** (described by the task text), NOT a whole feature.
+- The target path is the `target:` stated in the invocation text (e.g. `docs/roadmap/<feature>-taskNN-<slug>.md`). If no `target:` is present, **stop and report NEEDS_CONTEXT** — never guess a path.
+- The **reviewer vet still runs** (parameterised on the target path — see *After Plan is Written*), max 3 rounds.
+- Write the plan to the target path with front-matter `status: committed`, a `parent: docs/roadmap/<feature>.md` key, and `done-when`.
+- Perform **neither** the spec-doc commit **nor** the issue-tracker mirror — the caller (`roadmap`) owns both.
+- Do **NOT** perform the HARD BREAK, do **NOT** call `ask`, do **NOT** load the `implement` skill. Return control with a one-line "plan written to <target>" report.
+
 ## Input
 
 This skill operates on `docs/roadmap/<topic>.md`. Read that file and branch on its front-matter `status`:
+
+**In consumed mode ignore this section** — the target path is the `target:` given in the invocation text, no `ask` is permitted, and the 'no file → ask the user' branch never applies. If a `status: committed` plan already exists at the target (a re-run after a BLOCKED task), REFINE it in place (as the standalone committed-branch already describes) rather than re-planning from scratch.
+
 
 - **No file** (no discussion was run) → ask the user for the spec, write it to `docs/roadmap/<topic>.md` with `status: approved` front-matter, then plan from scratch.
 - **File exists, `status: approved`** (a design spec, no plan yet) → plan from the spec (the normal case — the spec was written by the `discuss` skill, which hands off here directly after approval).
@@ -31,6 +53,10 @@ If the topic isn't already known (no discussion handed off, no path given) and m
 ## Parallelisation
 
 Decide this while writing the plan, not after. Emit a `## Parallelisation` verdict and a `**Parallel:**` line on **every** task — those two are all `implement` reads.
+
+**Consumed mode exception:** a consumed-mode plan contains exactly one task, so it has nothing to parallelise
+with. Write `## Parallelisation` with a `SERIAL` verdict (one task cannot be a wave) and emit no `**Parallel:**`
+line. Parallelism in a `roadmap` run happens **between tasks**, in the wave grouping roadmap owns.
 
 Test each candidate wave against ALL SIX gates. A task joins a wave only if it clears every one; a task that clears none runs alone (which does not disqualify the tasks that do clear them).
 
@@ -49,7 +75,7 @@ Consult **[Parallelisation Guide](guides/guide-parallelisation.md)** for worked 
 
 ## Plan Format
 
-Write the plan to the spec's existing file — `docs/roadmap/<topic>.md` (kebab-case, named for the outcome, e.g. `docs/roadmap/user-auth.md`). Keep the spec's filename; the plan replaces the spec content in the same file:
+Write the plan to the spec's existing file — `docs/roadmap/<topic>.md` (kebab-case, named for the outcome, e.g. `docs/roadmap/user-auth.md`). Keep the spec's filename; the plan replaces the spec content in the same file: …unless consumed mode names a different `target:` — then write there instead, with the extra `parent:` front-matter key.
 
 ```markdown
 ---
@@ -136,17 +162,21 @@ Dispatch the **reviewer subagent** to review the plan:
 ```
 subagent({
   agent: "reviewer",
-  task: "Review type: plan execution review. Review the implementation plan at `docs/roadmap/<topic>.md`. This is NOT a review of the plan file as a document — it is a review of the plan against the actual codebase that will be modified. Read every file the plan references (creates, modifies, tests). Read any additional files needed to verify the plan is correct: existing interfaces, types, imports, dependencies, build configs, and related modules. Report anything the plan should do differently: missing files, wrong paths, incorrect signatures, overlooked edge cases, integration gaps, or anything the executing agent would get wrong. If you need to read the whole codebase to be sure, do it. The plan will be executed verbatim by an agent with no context — leave no stone unturned."
+  task: "Review type: plan execution review. Review the implementation plan at `<resolved plan path>`. This is NOT a review of the plan file as a document — it is a review of the plan against the actual codebase that will be modified. Read every file the plan references (creates, modifies, tests). Read any additional files needed to verify the plan is correct: existing interfaces, types, imports, dependencies, build configs, and related modules. Report anything the plan should do differently: missing files, wrong paths, incorrect signatures, overlooked edge cases, integration gaps, or anything the executing agent would get wrong. If you need to read the whole codebase to be sure, do it. The plan will be executed verbatim by an agent with no context — leave no stone unturned."
 })
 ```
 
+`<resolved plan path>` is the spec's file in standalone mode, or the invocation's `target:` in consumed mode.
+
 Fix issues (max 3 rounds).
 
-In the normal case (input was `status: approved`), the plan replaces the spec content in the same file and the front-matter moves from `status: approved` to `status: committed`. In the refine case (input was already `status: committed`), the plan is updated in place and the `status` stays `committed` — you improved the existing plan, you did not regenerate it. Commit the roadmap doc (`git add docs/roadmap/<topic>.md && git commit -m "docs: plan <topic>"`) so the plan version is preserved in git history. If this plan supersedes a separate older roadmap doc, delete it — history lives in git.
+**Standalone mode only:** in consumed mode the caller owns the commit. In the normal case (input was `status: approved`), the plan replaces the spec content in the same file and the front-matter moves from `status: approved` to `status: committed`. In the refine case (input was already `status: committed`), the plan is updated in place and the `status` stays `committed` — you improved the existing plan, you did not regenerate it. Commit the roadmap doc (`git add docs/roadmap/<topic>.md && git commit -m "docs: plan <topic>"`) so the plan version is preserved in git history. If this plan supersedes a separate older roadmap doc, delete it — history lives in git.
 
-**Mirror the plan to the issue tracker** — the same step the `discuss` skill calls 1b; resolve the tracker there (AGENTS.md first, never `git remote`). The file is the source of truth, the tracker is the review mirror. Reuse the issue the spec was posted to (the doc's `issue:` front-matter key) — the plan is a NEW COMMENT on that issue, not a new issue; carry the key forward if the spec step never ran. Post the plan body with the front-matter stripped and note the commit SHA so reviewers can link the exact version. GitHub caps a comment near 65 KB — split into consecutive `n of N` comments over the cap, never truncate. No tracker / no `gh` → say so once and continue; this never gates the HARD BREAK.
+**Standalone mode only:** in consumed mode the caller owns the mirror. **Mirror the plan to the issue tracker** — the same step the `discuss` skill calls 1b; resolve the tracker there (AGENTS.md first, never `git remote`). The file is the source of truth, the tracker is the review mirror. Reuse the issue the spec was posted to (the doc's `issue:` front-matter key) — the plan is a NEW COMMENT on that issue, not a new issue; carry the key forward if the spec step never ran. Post the plan body with the front-matter stripped and note the commit SHA so reviewers can link the exact version. GitHub caps a comment near 65 KB — split into consecutive `n of N` comments over the cap, never truncate. No tracker / no `gh` → say so once and continue; this never gates the HARD BREAK.
 
 **CRITICAL: Do NOT begin implementing any tasks in the plan. The `specify` skill ends once the plan is vetted and presented to the user. The plan is handed off to the `implement` skill, which will ask the user to confirm plan selection before executing.**
+
+**In consumed mode, skip the HARD BREAK below** — do not ask, do not load `implement`; return control to the caller. (The reviewer dispatch and max-3-round fix loop above still run.)
 
 **HARD BREAK — STOP here and ask. Do NOT continue into implementation on your own.**
 
@@ -180,6 +210,7 @@ In the normal case (input was `status: approved`), the plan replaces the spec co
 | Planning before design is agreed | Use `discuss` first to align on approach |
 | Too many tasks (10+) | Group related changes; aim for 3-7 tasks |
 | Sliding into implementation right after the plan | HARD BREAK — stop, ask via `ask`, and only load `implement` on explicit user confirmation |
+| Performing the HARD BREAK, committing, or mirroring to the tracker in consumed mode | Consumed mode writes the plan and returns; the caller owns commit + tracker |
 | Creating a plan index or done/ folder | No index, no graveyard — roadmap docs are self-contained; history lives in git |
 | Omitting the `## Parallelisation` verdict | `implement` reads a missing verdict as SERIAL. Declare SERIAL with a reason — a missed parallel opportunity is invisible; a wrong one is not |
 | Declaring a wave because the tasks are *logically* independent | Independence of features is not disjointness of paths. `routes.py`, a shared fixture, or a `mod.rs` collide regardless of how separate the features feel |

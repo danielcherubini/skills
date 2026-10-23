@@ -5,7 +5,7 @@ description: Use when asking to improve a codebase, refactor for quality, find a
 
 # Codebase Improvement
 
-Systematic codebase audit that surfaces improvement opportunities through 8 engineering lenses, produces a dated markdown report in `docs/reviews/`, then walks through each finding conversationally. Flows into the standard dev pipeline (discuss → specify → implement) after approval.
+Systematic codebase audit that surfaces improvement opportunities through 8 engineering lenses, produces a dated markdown report in `docs/reviews/`, then walks through each finding conversationally. Flows into the standard dev pipeline (roadmap → specify → implement) after approval.
 
 ## Architecture — Read This First
 
@@ -16,7 +16,7 @@ Main agent (YOU — running this skill)
   ├── Phase 3: Dispatch explore + reviewer subagents    ← pure leaves, no user interaction
   ├── Phase 4: Synthesize findings → write report       ← YOU do this
   ├── Phase 5: Walk through findings with ask()         ← YOU interact with the user
-  └── Phase 6: Pipeline handoff (specify / save / revise) ← YOU decide next step
+  └── Phase 6: Pipeline handoff (roadmap / save / revise) ← YOU decide next step
 ```
 
 **You (the main agent) own all orchestration AND all user interaction.** Subagents dispatched in Phases 2–3 are pure data-gathering leaves:
@@ -32,7 +32,7 @@ Main agent (YOU — running this skill)
 - "Where should we refactor?", "Surface improvement opportunities"
 - Codebase feels messy but unclear where to start
 
-**Not for:** reviewing a specific PR (use `review`), debugging a specific bug (use `systematic-debugging`), implementing a known change (use `specify` → `implement`)
+**Not for:** reviewing a specific PR (use `review`), debugging a specific bug (use `systematic-debugging`), implementing a known change (use `specify` → `implement`; an approved multi-finding backlog goes to `roadmap`)
 
 ## Workflow
 
@@ -146,7 +146,7 @@ ask({
     id: "next-step",
     question: "Discussion complete. N findings approved, D deferred. What next?",
     options: [
-      { label: "Create implementation plan (specify)" },
+      { label: "Decompose the approved backlog into a roadmap (load roadmap skill)" },
       { label: "Save report for later" },
       { label: "Revise findings" }
     ]
@@ -154,7 +154,7 @@ ask({
 })
 ```
 
-- **Create implementation plan** → Clear todo list, load `specify` skill, pass the approved backlog
+- **Decompose into roadmap** → Clear todo list, load the `roadmap` skill and pass the approved backlog (roadmap runs its own Step 0 entry confirmation). An audit backlog is inherently multi-task, so this is the default — it needs no extra confirmation beyond this menu. (This deliberately differs from `discuss`, which routes small single-design work straight to `specify`.)
 - **Save for later** → Report already saved in `docs/reviews/`
 - **Revise findings** → Return to Phase 2 with refined angles
 
@@ -259,4 +259,4 @@ ask({
 The skill is complete when:
 1. Report written to `docs/reviews/YYYY-MM-DD-codebase-improvement.md`
 2. All findings resolved (Approved, Dismissed, or Deferred)
-3. User has chosen a Phase 6 action (implement, save, or revise)
+3. User has chosen a Phase 6 action (roadmap, save, or revise)

@@ -25,6 +25,21 @@ Read the plan, create a feature branch, dispatch subagents per task, review the 
 
 ### 2. When no plan or ticket is provided:
 1. **Find candidate plans** — List `docs/roadmap/*.md` or roadmap docs. A doc is an executable plan when its front-matter says `status: committed`; a `status: approved` doc is a spec awaiting a plan — not executable yet (the `specify` skill turns it into a plan).
+
+   **Exclude roadmap artifacts from this list** — they are `roadmap`-run bookkeeping, not standalone plans:
+   - `docs/roadmap/<feature>-status.md` (the run's memory file)
+   - `docs/roadmap/<feature>-taskNN-*.md` — per-task plans that carry a `parent:` front-matter key. They are executed by `roadmap` as part of a run, never on their own; offering one here would execute a slice of a feature with its dependencies unbuilt.
+   - `docs/roadmap/<feature>-follow-ups.md` (staging notes)
+
+   Only a committed doc **without** a `parent:` key is a standalone plan. Filter mechanically rather than by eye:
+   ```bash
+   for f in docs/roadmap/*.md; do
+     [ -e "$f" ] || continue
+     case "$f" in *-status.md|*-follow-ups.md|*-task[0-9][0-9]*-*) continue ;; esac
+     grep -q '^status: committed' "$f" && ! grep -q '^parent:' "$f" && echo "$f"
+   done
+   ```
+   If the only committed docs are roadmap task plans, say so and ask for the feature branch instead (a `roadmap` run in progress owns them).
 2. **Ask the user** which plan to execute:
 
 ```
@@ -94,6 +109,8 @@ After the baseline check and **before dispatching Task 1**, read the plan's `## 
 **State your mode in one line, then proceed — no `ask`; this is your decision to make.** Name the collision or the verification: `Executing SERIALLY — Tasks 2 and 4 both modify src/routes.py, so the plan's Wave 1 is invalid.` / `Executing in 2 waves — Wave 1: Tasks 1, 2 (verified disjoint); Wave 2: Task 3 (imports Task 1's Cart).` A bare "going parallel now" is not a mode statement — **the reason is what lets the user catch you being wrong.**
 
 Full protocol with worked examples, failure handling, and the BLOCKED-sibling sequence: **[Parallel Execution Guide](guides/guide-parallel-execution.md)**.
+
+The wave protocol in [guide-parallel-execution.md](guides/guide-parallel-execution.md) is the shared source for both intra-plan waves and roadmap task waves.
 
 ## Per-Task Sequence (follow rigidly for every task)
 

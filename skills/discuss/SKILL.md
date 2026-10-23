@@ -10,7 +10,7 @@ Turn ideas into designs through collaborative dialogue before writing any code.
 As you discuss, capture decisions and terminology as persistent artifacts:
 - **Decisions** for non-obvious trade-offs (hard-to-reverse, surprising, real alternatives) — written to `docs/decisions/`
 - **CONTEXT.md** for resolved terminology (shared language that compounds across sessions)
-- **Spec** — once the design is approved, the full spec is written to `docs/roadmap/<topic>.md` as a draft (see After Approval), then handed straight to the `specify` skill, which finalizes it (no "what next" ask in between)
+- **Spec** — once the design is approved, the full spec is written to `docs/roadmap/<topic>.md` as a draft (see After Approval), then handed to `specify` (small scope) or `roadmap` (HUGE scope — see After Approval); for small scope there is no "what next" ask
 
 ## Pre-check (run this first, before the design flow)
 
@@ -52,7 +52,7 @@ Before starting the design flow, check `docs/roadmap/<topic>.md` for the current
 
 ## Hard Gate
 
-Do NOT write code, load the `implement` skill (or any implementation skill) until design is approved. This is a hard stop — and it does not lift into a continuation: even after approval, never flow into implementation on your own. The only path forward after approval is the immediate handoff to the `specify` skill (see After Approval); the user's next decision point is `specify`'s own HARD BREAK, and only that confirmation (or an explicit user request) ever leads to `implement`.
+Do NOT write code, load the `implement` skill (or any implementation skill) until design is approved. This is a hard stop — and it does not lift into a continuation: even after approval, never flow into implementation on your own. After approval the spec is handed to `specify` — or, when HUGE scope, the user is asked once whether to route to `roadmap` (see After Approval). Neither path flows into implementation on its own; the next decision point is `specify`'s HARD BREAK, or `roadmap`'s one-time "Proceed autonomously?" entry confirmation — and only that confirmation (or an explicit user request) ever leads to `implement`.
 
 ## Process
 
@@ -164,9 +164,19 @@ Once the design is approved by the user, write the complete spec (already presen
    - Post the spec body as a comment with the front-matter stripped, then write the URL into the doc's front-matter as `issue: <url>` — into the spec commit (`--amend`) while it is still unpushed, else a follow-up commit.
    - GitHub caps a comment near 65 KB. Over the cap, split across consecutive comments labelled `n of N` and say which part each holds — never truncate.
 
-2. **Hand off to the `specify` skill — do NOT ask what happens next.** The spec on disk is a draft; the `specify` skill finalizes it. Immediately:
-   - **Clear the todo list** — use `manage_todo_list` to remove all entries now that discussion is complete.
-   - Load the `specify` skill and invoke it. It reads the draft spec from `docs/roadmap/<topic>.md` (`status: approved`) and handles the entire spec-finalization/planning process in the same file. Its HARD BREAK — not this skill — is where the user decides whether to proceed to `implement`. Do NOT ask "what next": the handoff is the answer.
+2. **Hand off for small scope silently; for HUGE scope ask once (roadmap vs specify).** The spec on disk is a draft; the next skill finalizes it.
+
+   **Discriminator** — evaluate scope now: the count of independent design sections/tasks the spec contains, and whether the work fits one PR.
+   - **Small scope** — `≤2` items **and** fits one PR **and** no explicit "unattended" intent → hand to `specify` silently (current behavior). **Clear the todo list**, then load the `specify` skill; it reads the draft spec from `docs/roadmap/<topic>.md` (`status: approved`), finalizes it, and its HARD BREAK is where the user decides whether to proceed to `implement`. No "what next" ask.
+   - **HUGE scope** — `≥3` items **OR** won't fit one PR / spans sessions **OR** user said "run unattended / do all / across sessions" → one `ask`:
+
+     ```
+     ask({ questions: [{ id: "route", question: "This is large enough to split into a tracked multi-task run. Route to roadmap or plan as one shot (specify)?", options: [ { label: "Roadmap — decompose into tasks and run in waves (recommended)" }, { label: "Specify — one plan, one PR" }, { label: "Hold" } ] }] })
+     ```
+
+     - **Roadmap** → clear the todo list, load the `roadmap` skill (roadmap runs its own Step 0 entry confirmation).
+     - **Specify** → the small-scope handoff above.
+     - **Hold** → stop; the spec stays on disk for a later session.
 
 If the user explicitly asks to run a reviewer (before the handoff), THEN:
 1. Dispatch the **reviewer subagent** — the reviewer reads the spec from the file:
@@ -196,15 +206,15 @@ If the user explicitly asks to run a reviewer (before the handoff), THEN:
    ```
 
 3. Fix selected issues one at a time, applying each fix to `docs/roadmap/<topic>.md` so the file stays the source of truth. Re-run the reviewer once after all fixes — it reviews the updated file. If the spec was already mirrored to the tracker (step 1b), the posted copy is now stale: post the corrected body as a follow-up comment saying it supersedes the earlier one.
-4. After review is complete, hand off to the `specify` skill (no re-ask).
+4. After review is complete, hand off per the After Approval discriminator (specify silently for small scope; roadmap for HUGE scope).
 
-If the user (before the handoff) asks to revise the design: go back to the discussion process (from the section that needs rework). Once the revised design is approved, update `docs/roadmap/<topic>.md` with the new spec, then hand off to the `specify` skill (no re-ask).
+If the user (before the handoff) asks to revise the design: go back to the discussion process (from the section that needs rework). Once the revised design is approved, update `docs/roadmap/<topic>.md` with the new spec, then hand off per the After Approval discriminator (specify silently for small scope; roadmap for HUGE scope).
 
 If the user wants to stop before the handoff: stop. The spec is saved at `docs/roadmap/<topic>.md` and can be picked up in a later session — the pre-check's spec branch will offer the plan step then.
 
 ## Principles
 
-- Always use the `ask` tool for every decision point — clarifying questions, approach selection, section approval. The one exception is the post-approval handoff: it goes straight to `specify` with no ask — the user's next decision point is `specify`'s HARD BREAK
+- Always use the `ask` tool for every decision point — clarifying questions, approach selection, section approval, and the HUGE-scope roadmap-vs-specify route. The exception is the *small-scope* post-approval handoff: it goes straight to `specify` with no ask — the user's next decision point is `specify`'s HARD BREAK
 - One question per `ask` call
 - Never skip ahead to the next section without explicit user approval via `ask`
 - YAGNI — remove unnecessary features

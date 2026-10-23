@@ -1,6 +1,15 @@
 # Parallel Execution Guide
 
-How to verify a plan's waves against the real tree, run them safely, and commit the result. Load this when the plan declares `**Verdict:** PARALLEL`. The invariants in `implement`'s own text still apply — this is the detail, not a replacement.
+How to verify a plan's waves against the real tree, run them safely, and commit the result. Load this when the plan declares `**Verdict:** PARALLEL`, **or when the `roadmap` skill applies this protocol to task waves.** The invariants in `implement`'s own text still apply — this is the detail, not a replacement.
+
+## Two grains
+
+This protocol governs waves at **two grains**:
+
+- **(a) Intra-plan** — sub-tasks within one committed plan. `specify` emits the `**Parallel:**` lines, and each task's `Files:` list is the disjointness evidence.
+- **(b) Inter-task** — roadmap tasks within a run. `roadmap` emits the wave grouping and judges disjointness from each task's declared seam, re-verified against the tree, since roadmap tasks carry no `Files:` lists.
+
+Both use the **identical invariants**: children never commit, the orchestrator commits by pathspec, scoped in-wave verification, full suite once per wave, ≤4 per wave, a BLOCKED sibling holds the wave. Only the *evidence* for gate 1 (disjoint files) differs by grain. **Roadmap applies this protocol directly and does NOT load the `implement` skill per task.**
 
 ## Why you re-verify instead of obeying
 
@@ -15,6 +24,8 @@ Also treat the plan's labels as load-bearing data. A `**Parallel:**` line missin
 ## The check
 
 For each declared wave:
+
+**At task grain (roadmap), substitute *declared seam re-verified against the tree* for `Files:` in steps 1–2, and skip the `**Parallel:**`-line integrity test below** — roadmap tasks carry no `Files:` lists and no `**Parallel:**` lines.
 
 1. Collect each task's `Files:` list — Create + Modify + Test together.
 2. Compare pairwise. Any shared path fails the wave. Include: shared fixtures, snapshot dirs, `mod.rs` / `__init__.py` / barrel files, route or middleware registration, config, lockfiles, migrations.

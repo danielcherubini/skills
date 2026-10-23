@@ -177,7 +177,8 @@ ask({
       { label: "Discuss findings" },
       { label: "Targeted deep-dive on specific gaps" },
       { label: "Add a research dimension" },
-      { label: "Reframe the question" }
+      { label: "Reframe the question" },
+      { label: "Roadmap — decompose the tracks and run them" }
     ],
     multi: true,
     description: "**Write report to disk:** Write the final report as a .md file (do NOT re-print it)\n**Discuss findings:** Load the discuss skill to design or plan based on these findings\n**Targeted deep-dive:** Dispatch more researchers on specific gaps\n**Add dimension:** Dispatch a new angle not in original plan\n**Reframe:** Start over with revised question"
@@ -196,6 +197,7 @@ After calling ask(), **stop**. Wait for the response.
 | Targeted deep-dive | Dispatch more researcher subagents on specific gaps, re-synthesise |
 | Add dimension | Dispatch new angle, re-synthesise |
 | Reframe | Return to Phase 1 with revised question |
+| Roadmap | When (and only when) the findings imply multiple separate implementation tracks: load the `roadmap` skill, passing those tracks as the approved block. (If combined with "Write report to disk" via multi-select, write the report first, then load roadmap.) This does not change research's default — deliver-only stays the default. |
 
 Final report format (always include front-matter):
 

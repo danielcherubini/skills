@@ -147,15 +147,21 @@ git pull origin main
 
 ### 5. Clean Up Roadmap Doc & Final Report
 
-Delete the feature roadmap/plan doc (history lives in git):
+Delete the whole feature roadmap family (plan/spec, status, task plans, follow-ups — history lives in git).
+**Fold any `${FEATURE_NAME}-follow-ups.md` content into `docs/features/` or an ADR FIRST** — it is deleted here too.
 
 ```bash
-if [ -f "docs/roadmap/${FEATURE_NAME}.md" ]; then
-  git rm "docs/roadmap/${FEATURE_NAME}.md"
-  git commit -m "docs: remove ${FEATURE_NAME} roadmap — shipped (PR #${PR_NUMBER})"
-  git push origin main
-fi
+# Derive the feature name if not already set; refuse to run with an empty value.
+FEATURE_NAME="${FEATURE_NAME:-$(git branch --show-current | sed 's|^[^/]*/||')}"
+FEATURE_NAME="${FEATURE_NAME:?set FEATURE_NAME before cleanup}"
+for f in docs/roadmap/"${FEATURE_NAME}".md docs/roadmap/"${FEATURE_NAME}"-*.md; do
+  [ -e "$f" ] && git rm "$f"
+done
+git commit -m "docs: remove ${FEATURE_NAME} roadmap — shipped (PR #${PR_NUMBER})"
+git push origin main
 ```
+
+The glob matches the exact plan doc plus the dashed family (`-status`, `-taskNN-`, `-follow-ups`), so a sibling like `user-auth-v2.md` is not touched.
 
 If the plan contained durable architectural decisions, fold them into `docs/features/<feature>.md` or `docs/decisions/` before deleting.
 

@@ -22,13 +22,16 @@ One paragraph: what "finished" means, and which source document the work comes f
 Loop protocol (repeat until `status: done`):
 1. Read this file. Take the FIRST task whose Status is `todo`. Do not pick, reorder, or skip.
 2. Verify the task against the tree before doing it. Trust the tree over the task text.
-3. Expand it with `specify` in CONSUMED MODE (marker `SPECIFY CONSUMED MODE`, plus the task text and
-   `target: docs/roadmap/<feature>-taskNN-<slug>.md`). Vets the plan against real code (max 3 rounds).
-4. Dispatch wave siblings together per implement's wave protocol (children don't commit; you commit by
-   pathspec; scoped tests in-wave; full suite once per wave). Serial tasks: one `general` subagent, one commit.
-5. Run the gate. Green -> commit by pathspec -> mark `done` here -> one Changelog line.
-   Red -> re-dispatch; never fix by hand in the orchestrator.
-6. Update THIS FILE before starting the next task. Then loop.
+3. YOU dispatch `researcher` to ground the task (the plan child cannot — it has no subagent tool).
+4. YOU dispatch `specify` in CONSUMED MODE (marker `SPECIFY CONSUMED MODE`, the task text, the grounding
+   report, and `target: docs/roadmap/<feature>-taskNN-<slug>.md`).
+5. YOU dispatch `reviewer` on the plan file (max 3 rounds); findings -> re-dispatch consumed specify to refine
+   the same target. Commit the plan doc yourself — the child is forbidden from committing.
+6. Implement: wave siblings together per implement's wave protocol (children don't commit; you commit by
+   pathspec; scoped tests in-wave). Serial tasks: one `general` subagent, one commit.
+7. Run the gate (full suite once per wave). Green -> commit by pathspec -> mark `done` here -> one Changelog
+   line. Red -> re-dispatch; never fix by hand in the orchestrator.
+8. Update THIS FILE before starting the next task. Then loop.
 
 ## Gate — establish before task 1, re-run after every wave (and after each serial task)
     <exact commands, from which directory>

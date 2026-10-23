@@ -24,18 +24,22 @@ This skill runs in one of two modes. The mode is chosen by an **explicit marker 
 
 ### Standalone mode (default)
 
-The behavior described in the rest of this document, unchanged: full flow → reviewer vet (max 3 rounds) → **HARD BREAK** → `ask` → optionally load the `implement` skill. Use when a user or entry skill loads `specify` directly.
+The behavior described in the rest of this document, unchanged: read the input → **ground the plan (`researcher`, or inline if dispatched)** → write plan → reviewer vet (max 3 rounds) → **HARD BREAK** → `ask` → optionally load the `implement` skill. Use when a user or entry skill loads `specify` directly.
 
 ### Consumed mode
 
-Entered **only** when the invoking task text contains the exact marker `SPECIFY CONSUMED MODE`. Used by the `roadmap` skill, which runs `specify` once per task. In consumed mode:
+Entered **only** when the invoking task text contains the exact marker `SPECIFY CONSUMED MODE`. Used by the
+`roadmap` skill, which runs `specify` once per task. Consumed mode is normally run **as a dispatched child**
+(`general`), which has **no `subagent` tool** — so consumed mode never dispatches anything itself; the caller
+owns every sub-agent. In consumed mode:
 
 - Plan exactly **ONE task** (described by the task text), NOT a whole feature.
+- **Ground the plan inline** — read the files, grep the real signatures, confirm each path exists (see *Ground the Plan First*). If you genuinely have a `subagent` tool, dispatch `researcher` instead and say so.
 - The target path is the `target:` stated in the invocation text (e.g. `docs/roadmap/<feature>-taskNN-<slug>.md`). If no `target:` is present, **stop and report NEEDS_CONTEXT** — never guess a path.
-- The **reviewer vet still runs** (parameterised on the target path — see *After Plan is Written*), max 3 rounds.
 - Write the plan to the target path with front-matter `status: committed`, a `parent: docs/roadmap/<feature>.md` key, and `done-when`.
+- **The reviewer vet is the caller's, not yours.** Do not dispatch a reviewer — a child cannot, and promising one silently produces an un-vetted plan. `roadmap` vets the plan you write (see its Step 4) and re-dispatches you to refine it if the vet finds anything. If you *are* running with a `subagent` tool, run the vet as described in *After Plan is Written*.
 - Perform **neither** the spec-doc commit **nor** the issue-tracker mirror — the caller (`roadmap`) owns both.
-- Do **NOT** perform the HARD BREAK, do **NOT** call `ask`, do **NOT** load the `implement` skill. Return control with a one-line "plan written to <target>" report.
+- Do **NOT** perform the HARD BREAK, do **NOT** call `ask`, do **NOT** load the `implement` skill. Return control with a one-line "plan written to <target>" report, plus anything you could not verify so the caller's vet can target it.
 
 ## Input
 
@@ -49,6 +53,57 @@ This skill operates on `docs/roadmap/<topic>.md`. Read that file and branch on i
 - **File exists, `status: committed`** (a plan already exists) → **refine the existing plan; do NOT re-plan from scratch.** Read the existing plan and update it in place: fill gaps, add the information and rules this skill carries (concrete file paths, exact signatures/types, test steps, acceptance criteria, task breakdown), and keep what is already correct. This is the path taken when the `discuss` skill's "Approve the current plan?" routes back here. The file stays `status: committed` — you are improving the plan, not regenerating it.
 
 If the topic isn't already known (no discussion handed off, no path given) and more than one roadmap doc exists, ask the user which file to work on.
+
+## Ground the Plan First
+
+**Never write a plan from memory of the codebase.** Ground it — write the plan from what the tree actually
+contains. The plan's entire value is that it names *exact* paths, signatures and commands; an invented path is
+worse than no plan, because the executing agent follows it confidently and nothing downstream can tell a
+verified path from a plausible one.
+
+**How you ground depends on whether you can dispatch — and only you know that.** Do not assume, and do not
+stall looking for a tool you were never given:
+
+- **You have a `subagent` tool** (you are the main agent, running standalone `specify`) → **dispatch
+  `researcher`** and write the plan from its report.
+- **You do not** (you were dispatched as a child, which is how `roadmap` runs consumed `specify`) → **ground
+  yourself**: read the files, grep the real signatures, confirm every path exists. Say once that you are
+  grounding inline because you have no subagent tool. Never report this as a blocker.
+- Either way the plan must be grounded. The mechanism changes; the requirement does not.
+
+When dispatching, one `researcher` per independent area of the change — all calls in **one response** so they
+run concurrently:
+
+```typescript
+subagent({ agent: "researcher", task: `Grounding for plan: <feature or task name>
+
+Find and report, with file paths and line references:
+1. Every existing file this work will touch or depend on — confirm each path exists on disk.
+2. The real signatures / types / field names of anything this plan will call or modify. Quote them verbatim.
+3. Conventions this codebase already uses for that kind of change (error handling, module layout, naming).
+4. The exact test, format and build commands, and where test files for this area live.
+5. Integration points — who calls this code, and what would break.
+6. Anything already implemented that the plan might duplicate.
+
+Sources: local codebase. Report findings with paths; flag anything you could NOT confirm.` })
+```
+
+- **`researcher`, not `general`** — `general` is the *implementation* child; it writes code and commits.
+  Grounding is read-only and must not touch the tree. (When you are the consumed-mode child doing inline
+  grounding, you are already read-only for the duration — do not edit source while grounding.)
+- **Not the `reviewer`** — the reviewer runs *after* the plan exists (see *After Plan is Written*) and checks it
+  against the tree. Grounding runs *before*, so the plan starts from facts instead of being corrected afterwards.
+- **Report anything that could NOT be confirmed** — by the researcher, or by your own reading. Mark those items
+  explicitly `UNVERIFIED: <reason>` in the plan rather than inventing a plausible path. An honest gap is
+  actionable; a confident guess is not. The caller's reviewer uses these to target its vet.
+- **Scale to the work** — a one-file change needs one quick researcher; a multi-area feature needs one per area.
+  Two angles that depend on each other are one angle with N steps: give them to a single researcher.
+- **Consumed mode:** scope the grounding to the single task being planned — the caller supplied one task, not
+  the whole feature. No `ask` is permitted, so never pause to query the user about a gap; record it as
+  `UNVERIFIED: <reason>` in the plan instead.
+
+Never skip grounding silently. If you could not ground part of the plan, say so in the plan itself rather
+than writing a confident path you never opened.
 
 ## Parallelisation
 
@@ -176,7 +231,7 @@ Fix issues (max 3 rounds).
 
 **CRITICAL: Do NOT begin implementing any tasks in the plan. The `specify` skill ends once the plan is vetted and presented to the user. The plan is handed off to the `implement` skill, which will ask the user to confirm plan selection before executing.**
 
-**In consumed mode, skip the HARD BREAK below** — do not ask, do not load `implement`; return control to the caller. (The reviewer dispatch and max-3-round fix loop above still run.)
+**In consumed mode, skip the HARD BREAK below** — do not ask, do not load `implement`; return control to the caller. **The reviewer dispatch above runs only if you actually have a `subagent` tool** (true standalone, false when you are the consumed-mode child) — when you do not, the caller (`roadmap`) vets the plan you wrote; never report a vet you did not run as one you did.
 
 **HARD BREAK — STOP here and ask. Do NOT continue into implementation on your own.**
 
@@ -210,6 +265,7 @@ Fix issues (max 3 rounds).
 | Planning before design is agreed | Use `discuss` first to align on approach |
 | Too many tasks (10+) | Group related changes; aim for 3-7 tasks |
 | Sliding into implementation right after the plan | HARD BREAK — stop, ask via `ask`, and only load `implement` on explicit user confirmation |
+| Writing the plan from memory — invented paths, signatures, or test commands | Ground first: dispatch `researcher` if you have a subagent tool, otherwise read the files yourself. Mark anything unconfirmed `UNVERIFIED` |
 | Performing the HARD BREAK, committing, or mirroring to the tracker in consumed mode | Consumed mode writes the plan and returns; the caller owns commit + tracker |
 | Creating a plan index or done/ folder | No index, no graveyard — roadmap docs are self-contained; history lives in git |
 | Omitting the `## Parallelisation` verdict | `implement` reads a missing verdict as SERIAL. Declare SERIAL with a reason — a missed parallel opportunity is invisible; a wrong one is not |

@@ -135,13 +135,31 @@ you were asked to do.**
 **REQUIRED READ:** `status-file-template.md` — format, protocol, truthfulness rules.
 
 Per iteration: read status file → first `todo` task → if its wave siblings are disjoint (judged from the
-**Seam** column), dispatch them together per the wave protocol, else one at a time. Expand each task with `specify` in **consumed mode** by
-passing the literal marker `SPECIFY CONSUMED MODE`, the task's decomposition text (so specify knows which
-single task to plan), and `target: docs/roadmap/<feature>-taskNN-<slug>.md`. Stage/commit the produced task
-plan docs yourself — in their own `docs: plan <feature> taskNN` commit or folded into that task's pathspec
-commit (consumed `specify` is forbidden from committing, so you own it). The orchestrator commits source by
-pathspec, runs the full suite once per wave (and after each serial task), marks `done`, and updates the file
-**before** the next task. The orchestrator never edits source itself.
+**Seam** column), handle them together, else one at a time.
+
+**You own every sub-agent dispatch in this loop.** A consumed-`specify` run is a dispatched `general` child and
+has **no `subagent` tool** — it cannot ground itself with a researcher or vet itself with a reviewer. If you
+delegate those to it, they silently do not happen and you ship an un-grounded, un-vetted plan. Per task, in
+order:
+
+1. **Ground** — dispatch `researcher` for the task (existing files, real signatures verbatim, conventions, exact
+   test/build commands, integration points, anything already implemented). Read-only, so ground the whole wave's
+   tasks in one response.
+2. **Plan** — dispatch consumed `specify` with the literal marker `SPECIFY CONSUMED MODE`, the task's
+   decomposition text, **the grounding report from step 1** (the child cannot fetch it), and
+   `target: docs/roadmap/<feature>-taskNN-<slug>.md`.
+3. **Vet** — dispatch `reviewer` against the plan file it wrote (max 3 rounds). Findings → re-dispatch consumed
+   `specify` to **refine that same target in place**; do not fix the plan yourself.
+4. **Commit the plan docs** — your commit, by pathspec: either a `docs: plan <feature> taskNN` commit or folded
+   into the task's source commit. Consumed `specify` is forbidden from committing, so if you skip this the plan
+   is never recorded.
+5. **Implement** — dispatch per the wave protocol (children don't commit; you commit by pathspec; scoped tests
+   in-wave).
+6. **Gate** — full suite once per wave (and after each serial task), mark `done`, update the file **before** the
+   next task.
+
+Two read-only dispatches per task (researcher + reviewer) is the designed cost, not waste — it is what stops
+invented paths from reaching the implementation child. The orchestrator never edits source itself.
 
 **Roles:** that dispatch is the *orchestrator's* job. As the implementation child you have no subagent
 tool — don't stall on it. Do the task, one commit, gate re-run before calling it done, verdicts recorded.
@@ -174,6 +192,7 @@ family (plan, status, task plans, and follow-ups) after any follow-ups content i
 | Widen scope because the tree shows work undone | Unapproved changes shipped as diligence |
 | Pay any cost to satisfy a criterion exactly | A Proxy-and-freeze rewrite where a limit note fit |
 | Child stalls: "no subagent tool here" | Nothing ships; dispatch is the orchestrator's job |
+| Telling the consumed-`specify` child to "ground with researcher and vet with reviewer" | Those dispatches silently never happen — a child has no subagent tool. YOU dispatch researcher and reviewer; the child only writes the plan |
 
 **Violating the letter of these rules is violating their spirit.** "I'll note the phase status once, it's
 obvious" is how four contradictory headings got written.

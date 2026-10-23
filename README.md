@@ -91,7 +91,7 @@ The [systematic-debugging skill](skills/systematic-debugging/) enforces a root-c
 | Skill | Trigger | What it does |
 |-------|---------|--------------|
 | [discuss](skills/discuss/) | "let's discuss", "lets brainstorm" | Collaborative design dialogue before coding. Establishes terminology, captures ADRs, writes the approved spec to `docs/roadmap/`. Hard gate — no code until design is approved |
-| [specify](skills/specify/) | after design approval | Turns an approved design (or one roadmap task) into independent, commitable tasks. Runs standalone, or in consumed mode when `roadmap` drives it |
+| [specify](skills/specify/) | after design approval | Turns an approved design (or one roadmap task) into independent, commitable tasks. Grounds itself before writing (`researcher` when it can dispatch, inline when it is a child) and vets with `reviewer`. Runs standalone, or in consumed mode when `roadmap` drives it — where roadmap owns the researcher and reviewer dispatches |
 | [roadmap](skills/roadmap/) | "work through all of these", "do this autonomously", "break this into tasks", "keep going across sessions" | Coarse-grain driver: decomposes an approved block into N tasks, computes a dependency graph, groups them into waves on one branch, and runs autonomously (status file = memory). Drives `specify` per task |
 | [implement](skills/implement/) | after a plan is ready | Executes the plan: feature branch, baseline, subagent-per-task (TDD), reviews, PRs. Also owns the wave protocol roadmap reuses |
 | [finish](skills/finish/) | "merge this", "ship it", "finish up" | Checks reviews/CI, merges the PR, syncs main, deletes the `docs/roadmap/<feature>-*` family |

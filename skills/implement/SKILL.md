@@ -95,6 +95,8 @@ After the baseline check and **before dispatching Task 1**, read the plan's `## 
 
 Full protocol with worked examples, failure handling, and the BLOCKED-sibling sequence: **[Parallel Execution Guide](guides/guide-parallel-execution.md)**.
 
+The wave protocol in [guide-parallel-execution.md](guides/guide-parallel-execution.md) is the shared source for both intra-plan waves and roadmap task waves.
+
 ## Per-Task Sequence (follow rigidly for every task)
 
 Applies to every task, serial or in a wave — a wave just means several of these run concurrently, each in its own child. Steps 1–4 are per-task; the wave barriers are per-wave (*Running a wave*).

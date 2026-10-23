@@ -35,7 +35,7 @@ Read the plan, create a feature branch, dispatch subagents per task, review the 
    ```bash
    for f in docs/roadmap/*.md; do
      [ -e "$f" ] || continue
-     case "$f" in *-status.md|*-follow-ups.md|*-task[0-9]*.md) continue ;; esac
+     case "$f" in *-status.md|*-follow-ups.md|*-task[0-9][0-9]*-*) continue ;; esac
      grep -q '^status: committed' "$f" && ! grep -q '^parent:' "$f" && echo "$f"
    done
    ```

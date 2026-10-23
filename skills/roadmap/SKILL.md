@@ -43,7 +43,8 @@ Then:
    **Roadmap owns the issue-tracker mirror and the commits that consumed `specify` declines.** Mirror the task
    breakdown as a NEW COMMENT on the spec's issue (the doc's `issue:` key, carried forward per `discuss`'s
    step 1b / `specify`'s mirror step) — the plan comment is written once here, since consumed mode cannot.
-   No tracker / no `gh` → say so once and continue; it never gates the run.
+   No spec doc / no `issue:` key (the `codebase-improvement` and `research` entries) → there is nothing to
+   mirror to: say so once and continue. No tracker / no `gh` → same. This never gates the run.
 4. Create the feature branch: see the `gitflow-branching` skill, branch `feature/<topic>` off `main`. All N
    tasks commit to this one branch. Never commit roadmap tasks onto `main`.
 
@@ -51,8 +52,11 @@ Then:
 Every artifact this skill writes is named from it (`<feature>-status.md`, `<feature>-taskNN-*.md`,
 `<feature>-follow-ups.md`) and `finish` deletes by the same name. Never derive it from an audit date, a report
 filename, or a spec title, or the status file and task plans will be orphaned on ship. When the entry is
-`discuss`, `<topic>` is already the spec's basename — keep it. When the entry is `codebase-improvement` or
-`research`, there is no spec file at `docs/roadmap/<feature>.md`; that is expected, and `finish` skips it.
+`discuss`, **`<topic>` must be the spec's basename** — if `gitflow-branching` would prepend a ticket id
+(`feature/PROJ-12-user-auth`), name the branch `feature/user-auth` instead, or rename the spec to match. The
+branch topic and the spec basename have to be the same string or `finish` deletes a family that does not
+exist and leaves the real one behind. When the entry is `codebase-improvement` or `research`, there is no
+spec file at `docs/roadmap/<feature>.md`; that is expected, and `finish` skips it.
 
 ### N=1 degenerate
 
@@ -130,8 +134,8 @@ you were asked to do.**
 
 **REQUIRED READ:** `status-file-template.md` — format, protocol, truthfulness rules.
 
-Per iteration: read status file → first `todo` task → if its wave siblings are disjoint, dispatch them
-together per the wave protocol, else one at a time. Expand each task with `specify` in **consumed mode** by
+Per iteration: read status file → first `todo` task → if its wave siblings are disjoint (judged from the
+**Seam** column), dispatch them together per the wave protocol, else one at a time. Expand each task with `specify` in **consumed mode** by
 passing the literal marker `SPECIFY CONSUMED MODE`, the task's decomposition text (so specify knows which
 single task to plan), and `target: docs/roadmap/<feature>-taskNN-<slug>.md`. Stage/commit the produced task
 plan docs yourself — in their own `docs: plan <feature> taskNN` commit or folded into that task's pathspec
@@ -143,7 +147,10 @@ pathspec, runs the full suite once per wave (and after each serial task), marks 
 tool — don't stall on it. Do the task, one commit, gate re-run before calling it done, verdicts recorded.
 Note once that roles collapsed; a missing tool is not a blocker.
 
-Autonomous mode: never ask the owner **after** the Step 0 Entry confirmation. Decide, record the decision and its evidence, continue. The one further ask is `review`'s Phase 8 delivery decision (open a PR / merge) at the very end of Step 5 — that is the run's terminal hand-off, not a mid-loop question, and it is permitted.
+Autonomous mode: never ask the owner **after** the Step 0 Entry confirmation. Decide, record the decision and its evidence, continue. Asks that remain permitted at the very end of Step 5 (they are gates on shipping, not mid-loop questions):
+`review`'s Phase 8 delivery decision (open a PR / merge), and `finish`'s merge gates — an ambiguous merge mode
+(`finish` Step 1) and **pending human reviewers** (`finish` Step 3, "Wait for review" / "Merge anyway").
+Never auto-merge over an unsubmitted human review: that ask exists precisely so you cannot.
 
 ## Step 5 — Ship the record, not just the code
 

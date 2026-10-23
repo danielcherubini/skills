@@ -75,7 +75,7 @@ addition to general code quality.
 1. List the roadmap docs — excluding `roadmap`-run bookkeeping (`*-status.md`, `*-task*.md`,
    `*-follow-ups.md`), which are not standalone plans:
    ```bash
-   ls docs/roadmap/*.md 2>/dev/null | grep -Ev -- '-(status|follow-ups|task[0-9A-Za-z_-]*)+\.md$'
+   ls docs/roadmap/*.md 2>/dev/null | grep -Ev -- '-(status|follow-ups)\.md$|-task[0-9][0-9]+-'
    ```
 
 2. Match the current branch against the doc names — a `feature/<topic>` branch usually

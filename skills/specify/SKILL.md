@@ -54,6 +54,10 @@ If the topic isn't already known (no discussion handed off, no path given) and m
 
 Decide this while writing the plan, not after. Emit a `## Parallelisation` verdict and a `**Parallel:**` line on **every** task — those two are all `implement` reads.
 
+**Consumed mode exception:** a consumed-mode plan contains exactly one task, so it has nothing to parallelise
+with. Write `## Parallelisation` with a `SERIAL` verdict (one task cannot be a wave) and emit no `**Parallel:**`
+line. Parallelism in a `roadmap` run happens **between tasks**, in the wave grouping roadmap owns.
+
 Test each candidate wave against ALL SIX gates. A task joins a wave only if it clears every one; a task that clears none runs alone (which does not disqualify the tasks that do clear them).
 
 1. **Disjoint files** — `Files:` lists (Create + Modify + **Test**) share ZERO paths, pairwise.

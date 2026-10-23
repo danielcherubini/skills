@@ -6,7 +6,8 @@ context-compacted and knows nothing else. Copy this structure; delete the commen
 ```markdown
 ---
 status: running            # running | done
-mode: autonomous           # autonomous = never ask the owner questions
+mode: autonomous           # autonomous = no mid-loop questions (entry confirmation and the
+                           #   review/finish shipping gates are the documented exceptions)
 updated: YYYY-MM-DD
 ---
 

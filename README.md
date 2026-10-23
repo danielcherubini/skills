@@ -2,22 +2,42 @@
 
 ## The Core Pipeline
 
-The primary development workflow chains four skills together:
+The primary development workflow has two shapes — a short one for a single feature, and a longer one for a
+large block of work that must be split into tasks and driven across sessions:
 
 ```
-discuss → specify → implement → finish
+Small scope: entry → specify → implement → review → finish
+Large scope: entry → roadmap → ( specify → implement per task, in waves ) → review → finish
 ```
+
+The **entry** is whichever skill produced the approved work: `discuss`, `research`, or `codebase-improvement`.
+`roadmap` runs *first* in the large shape and **nests** `specify` once per task — it is a coarse grain, `specify`
+is the fine grain.
 
 1. **discuss** — Collaborative design dialogue before coding. Establishes shared terminology, proposes approaches with trade-offs, captures ADRs and glossary terms, writes the approved spec to `docs/roadmap/`. Hard gate — no code until design is approved.
-2. **specify** — Turns the approved design into independent, commitable tasks with exact file paths, function names, and test commands. Written for a context-free agent. Outputs to `docs/roadmap/` (replacing the spec in the same file).
-3. **implement** — Executes the plan: creates feature branch, runs baseline checks, dispatches subagents per task (TDD-driven), handles reviews, opens PRs.
-4. **finish** — Checks reviews and CI, fixes issues, merges the PR, syncs local main, deletes the roadmap doc (history lives in git).
+2. **roadmap** — (Large scope only.) Decomposes an approved block into N tasks, computes the dependency graph, groups tasks into waves on **one** feature branch, and runs autonomously — the status file is its only memory. It drives `specify` in **consumed mode** per task (no ask, plan written to a per-task path and returned), then commits each task by pathspec. One entry confirmation (baseline + graph), then silent until done.
+3. **specify** — Turns an approved design (or one roadmap task) into independent, commitable tasks with exact file paths, function names, and test commands. Written for a context-free agent. Outputs to `docs/roadmap/`.
+4. **implement** — Executes the plan: creates feature branch, runs baseline checks, dispatches subagents per task (TDD-driven), handles reviews, opens PRs. In the large shape, `roadmap` applies implement's wave protocol directly instead of loading implement per task.
+5. **finish** — Checks reviews and CI, fixes issues, merges the PR, syncs local main, deletes the whole `docs/roadmap/<feature>-*` family (history lives in git).
 
 This structure lets even small local models handle complex work reliably — each stage produces precise artifacts that the next stage can execute without guessing.
 
+## Entry routing
+
+Which skill the pipeline starts from — and whether it routes to `roadmap` or straight to `specify`:
+
+| Entry | Default target | Ask? |
+|-------|----------------|------|
+| **codebase-improvement** | → `roadmap` | never — an approved audit backlog is inherently multi-task |
+| **discuss** | → `specify` | only when HUGE: ≥3 independent items, or won't fit one PR / spans sessions |
+| **research** | → nothing (informs a decision) | only if findings imply multiple implementation tracks → offer roadmap |
+| **any** + "run unattended / do all these / keep going across sessions" | → `roadmap` | no ask — explicit override |
+
+Small work (≤2 items, one PR) flows straight to `specify` with no ask.
+
 ## Meta Skills
 
-Beyond the pipeline, two skills operate as pluggable gates you can run with either small or large models. Like getting a second opinion from a specialist — you pay for heavy reasoning only when you need it.
+Beyond the core pipeline, several skills operate as pluggable gates or entry points you can run with either small or large models. Like getting a second opinion from a specialist — you pay for heavy reasoning only when you need it.
 
 ### Review
 
@@ -54,7 +74,7 @@ Every claim is backed by a source — GitHub permalinks with commit SHAs, full U
 
 ### Codebase Improvement
 
-The [codebase-improvement skill](skills/codebase-improvement/) is a systematic audit that surfaces improvement opportunities through 8 engineering lenses: file length, DRY violations, weak abstractions, coupling issues, missing tests, inconsistent patterns, dead code, and naming. It borrows the research skill's dispatch pattern for scanning and the review skill's deep-dive pattern for high-severity findings. Produces a dated markdown report in `docs/reviews/`, then walks through each finding conversationally with you — approve, research more, dismiss (with optional ADR recording), or defer. Flows naturally into `discuss → specify → implement` after approval.
+The [codebase-improvement skill](skills/codebase-improvement/) is a systematic audit that surfaces improvement opportunities through 8 engineering lenses: file length, DRY violations, weak abstractions, coupling issues, missing tests, inconsistent patterns, dead code, and naming. It borrows the research skill's dispatch pattern for scanning and the review skill's deep-dive pattern for high-severity findings. Produces a dated markdown report in `docs/reviews/`, then walks through each finding conversationally with you — approve, research more, dismiss (with optional ADR recording), or defer. Flows naturally into the dev pipeline after approval — an approved audit backlog always routes to `roadmap`.
 
 **Triggers:** *"improve this codebase"*, *"audit code quality"*, *"find architectural issues"*
 
@@ -65,6 +85,16 @@ The [systematic-debugging skill](skills/systematic-debugging/) enforces a root-c
 **Triggers:** Any bug, test failure, or unexpected behavior
 
 ## All Skills
+
+### Pipeline
+
+| Skill | Trigger | What it does |
+|-------|---------|--------------|
+| [discuss](skills/discuss/) | "let's discuss", "lets brainstorm" | Collaborative design dialogue before coding. Establishes terminology, captures ADRs, writes the approved spec to `docs/roadmap/`. Hard gate — no code until design is approved |
+| [specify](skills/specify/) | after design approval | Turns an approved design (or one roadmap task) into independent, commitable tasks. Runs standalone, or in consumed mode when `roadmap` drives it headless |
+| [roadmap](skills/roadmap/) | "work through all of these", "do this autonomously", "break this into tasks", "keep going across sessions" | Coarse-grain driver: decomposes an approved block into N tasks, computes a dependency graph, groups them into waves on one branch, and runs autonomously (status file = memory). Drives `specify` per task |
+| [implement](skills/implement/) | after a plan is ready | Executes the plan: feature branch, baseline, subagent-per-task (TDD), reviews, PRs. Also owns the wave protocol roadmap reuses |
+| [finish](skills/finish/) | "merge this", "ship it", "finish up" | Checks reviews/CI, merges the PR, syncs main, deletes the `docs/roadmap/<feature>-*` family |
 
 ### Quality and Debugging
 

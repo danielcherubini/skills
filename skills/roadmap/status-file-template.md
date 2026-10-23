@@ -21,21 +21,29 @@ One paragraph: what "finished" means, and which source document the work comes f
 Loop protocol (repeat until `status: done`):
 1. Read this file. Take the FIRST task whose Status is `todo`. Do not pick, reorder, or skip.
 2. Verify the task against the tree before doing it. Trust the tree over the task text.
-3. Plan it with `specify`; a `reviewer` subagent vets the plan against real code (max 3 rounds).
-4. Implement it with ONE `general` subagent. One task = one commit.
-5. Run the gate. Green -> commit -> mark `done` here -> one Changelog line.
-   Red -> re-dispatch with the failure; never fix by hand in the orchestrator.
+3. Expand it with `specify` in CONSUMED MODE (marker `SPECIFY CONSUMED MODE`, plus the task text and
+   `target: docs/roadmap/<feature>-taskNN-<slug>.md`). Vets the plan against real code (max 3 rounds).
+4. Dispatch wave siblings together per implement's wave protocol (children don't commit; you commit by
+   pathspec; scoped tests in-wave; full suite once per wave). Serial tasks: one `general` subagent, one commit.
+5. Run the gate. Green -> commit by pathspec -> mark `done` here -> one Changelog line.
+   Red -> re-dispatch; never fix by hand in the orchestrator.
 6. Update THIS FILE before starting the next task. Then loop.
 
-## Gate — establish before task 1, re-run after every task
+## Gate — establish before task 1, re-run after every wave (and after each serial task)
     <exact commands, from which directory>
 Baseline measured at <commit>: <N files / M tests, pass/fail>.
 
+## Dependency graph / waves
+The persisted wave grouping — the loop's only memory must carry it, or a future iteration re-derives it from
+nothing. One line per wave; note the symbol that forces a later wave.
+    Wave 1: A1, A2, A3   (disjoint seams)
+    Wave 2: B1           (needs A1's `<symbol>`)
+
 ## Tasks
-| # | Task | Plan § | Status |
-|---|------|--------|--------|
-| A1 | ... | Phase A | `todo` |
-| A2 | ... | Phase A | `done` `<hash>` |
+| # | Task | Plan file | Wave | Status |
+|---|------|-----------|------|--------|
+| A1 | ... | `docs/roadmap/<feature>-task01-<slug>.md` | 1 | `todo` |
+| A2 | ... | `docs/roadmap/<feature>-task02-<slug>.md` | 1 | `done` `<hash>` |
 
 ## Blockers / open questions
 Anything that stops the loop. Empty means empty.
@@ -84,7 +92,9 @@ current figures once, in one place, labelled current.
 
 ## The follow-ups file
 
-The plan and the status file are **deleted on ship**, so anything deliberately not fixed must live
-somewhere that survives. Write `docs/roadmap/<feature>-follow-ups.md` before the final commit, not after.
-Each item: what it is, its **status** (`open work` / `recorded, not open work` / `accepted`), and the
-reason it was left. Then point the status file's Blockers section at it and do not restate the items.
+The plan, the status file, the task plans, **and this follow-ups file are all deleted on ship** — `finish`
+removes the whole `docs/roadmap/<feature>-*` family. So the follow-ups file is a **staging** artifact, not a
+permanent survivor: write it before the final commit, and before `finish` runs, **fold its durable content
+into `docs/features/` or an ADR** so it outlives the roadmap directory. Each item: what it is, its **status**
+(`open work` / `recorded, not open work` / `accepted`), and the reason it was left. Point the status file's
+Blockers section at it and do not restate the items.

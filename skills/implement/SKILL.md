@@ -25,6 +25,13 @@ Read the plan, create a feature branch, dispatch subagents per task, review the 
 
 ### 2. When no plan or ticket is provided:
 1. **Find candidate plans** — List `docs/roadmap/*.md` or roadmap docs. A doc is an executable plan when its front-matter says `status: committed`; a `status: approved` doc is a spec awaiting a plan — not executable yet (the `specify` skill turns it into a plan).
+
+   **Exclude roadmap artifacts from this list** — they are `roadmap`-run bookkeeping, not standalone plans:
+   - `docs/roadmap/<feature>-status.md` (the run's memory file)
+   - `docs/roadmap/<feature>-taskNN-*.md` — per-task plans that carry a `parent:` front-matter key. They are executed by `roadmap` as part of a run, never on their own; offering one here would execute a slice of a feature with its dependencies unbuilt.
+   - `docs/roadmap/<feature>-follow-ups.md` (staging notes)
+
+   Only a committed doc **without** a `parent:` key is a standalone plan. If the only committed docs are roadmap task plans, say so and ask for the feature branch instead (a `roadmap` run in progress owns them).
 2. **Ask the user** which plan to execute:
 
 ```

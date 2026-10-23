@@ -72,9 +72,10 @@ addition to general code quality.
 
 #### Find the active plan
 
-1. List the roadmap docs:
+1. List the roadmap docs — excluding `roadmap`-run bookkeeping (`*-status.md`, `*-task*.md`,
+   `*-follow-ups.md`), which are not standalone plans:
    ```bash
-   ls docs/roadmap/*.md 2>/dev/null
+   ls docs/roadmap/*.md 2>/dev/null | grep -Ev -- '-(status|follow-ups|task[0-9A-Za-z_-]*)+\.md$'
    ```
 
 2. Match the current branch against the doc names — a `feature/<topic>` branch usually

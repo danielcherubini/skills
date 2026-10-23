@@ -154,14 +154,17 @@ Delete the whole feature roadmap family (plan/spec, status, task plans, follow-u
 # Derive the feature name if not already set; refuse to run with an empty value.
 FEATURE_NAME="${FEATURE_NAME:-$(git branch --show-current | sed 's|^[^/]*/||')}"
 FEATURE_NAME="${FEATURE_NAME:?set FEATURE_NAME before cleanup}"
-for f in docs/roadmap/"${FEATURE_NAME}".md docs/roadmap/"${FEATURE_NAME}"-*.md; do
+for f in "docs/roadmap/${FEATURE_NAME}.md" \
+         "docs/roadmap/${FEATURE_NAME}-status.md" \
+         "docs/roadmap/${FEATURE_NAME}-follow-ups.md" \
+         docs/roadmap/"${FEATURE_NAME}"-task*.md; do
   [ -e "$f" ] && git rm "$f"
 done
 git commit -m "docs: remove ${FEATURE_NAME} roadmap — shipped (PR #${PR_NUMBER})"
 git push origin main
 ```
 
-The glob matches the exact plan doc plus the dashed family (`-status`, `-taskNN-`, `-follow-ups`), so a sibling like `user-auth-v2.md` is not touched.
+The glob names each roadmap artifact explicitly (`<feature>.md`, `-status`, `-follow-ups`, `-task*`), so a sibling like `user-auth-v2.md` is never touched and the glob can never widen to `docs/roadmap/*.md`.
 
 If the plan contained durable architectural decisions, fold them into `docs/features/<feature>.md` or `docs/decisions/` before deleting.
 

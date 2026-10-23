@@ -151,20 +151,25 @@ Delete the whole feature roadmap family (plan/spec, status, task plans, follow-u
 **Fold any `${FEATURE_NAME}-follow-ups.md` content into `docs/features/` or an ADR FIRST** — it is deleted here too.
 
 ```bash
-# Derive the feature name if not already set; refuse to run with an empty value.
-FEATURE_NAME="${FEATURE_NAME:-$(git branch --show-current | sed 's|^[^/]*/||')}"
+# Derive from CURRENT_BRANCH (captured at step 1) — NOT `git branch --show-current`, which by now
+# returns `main` because step 4 already checked it out. An empty value must abort, never glob.
+FEATURE_NAME="${FEATURE_NAME:-$(printf '%s' "$CURRENT_BRANCH" | sed 's|^[^/]*/||')}"
 FEATURE_NAME="${FEATURE_NAME:?set FEATURE_NAME before cleanup}"
 for f in "docs/roadmap/${FEATURE_NAME}.md" \
          "docs/roadmap/${FEATURE_NAME}-status.md" \
          "docs/roadmap/${FEATURE_NAME}-follow-ups.md" \
-         docs/roadmap/"${FEATURE_NAME}"-task*.md; do
+         docs/roadmap/"${FEATURE_NAME}"-task[0-9]*.md; do
   [ -e "$f" ] && git rm "$f"
 done
-git commit -m "docs: remove ${FEATURE_NAME} roadmap — shipped (PR #${PR_NUMBER})"
-git push origin main
+# Only commit when the glob actually staged something; an unconditional commit fails on a
+# no-op feature name and would leave `git push` to run against a stale commit.
+if ! git diff --cached --quiet; then
+  git commit -m "docs: remove ${FEATURE_NAME} roadmap — shipped (PR #${PR_NUMBER})"
+  git push origin main
+fi
 ```
 
-The glob names each roadmap artifact explicitly (`<feature>.md`, `-status`, `-follow-ups`, `-task*`), so a sibling like `user-auth-v2.md` is never touched and the glob can never widen to `docs/roadmap/*.md`.
+The glob names each roadmap artifact explicitly (`<feature>.md`, `-status`, `-follow-ups`, `-task[0-9]*`), so a sibling like `user-auth-v2.md` is never touched and the glob can never widen to `docs/roadmap/*.md`. If `docs/roadmap/<feature>.md` does not exist (a roadmap run whose entry was `codebase-improvement` or `research` has no spec file), the matching entries are simply skipped.
 
 If the plan contained durable architectural decisions, fold them into `docs/features/<feature>.md` or `docs/decisions/` before deleting.
 

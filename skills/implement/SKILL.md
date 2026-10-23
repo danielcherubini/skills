@@ -31,7 +31,15 @@ Read the plan, create a feature branch, dispatch subagents per task, review the 
    - `docs/roadmap/<feature>-taskNN-*.md` — per-task plans that carry a `parent:` front-matter key. They are executed by `roadmap` as part of a run, never on their own; offering one here would execute a slice of a feature with its dependencies unbuilt.
    - `docs/roadmap/<feature>-follow-ups.md` (staging notes)
 
-   Only a committed doc **without** a `parent:` key is a standalone plan. If the only committed docs are roadmap task plans, say so and ask for the feature branch instead (a `roadmap` run in progress owns them).
+   Only a committed doc **without** a `parent:` key is a standalone plan. Filter mechanically rather than by eye:
+   ```bash
+   for f in docs/roadmap/*.md; do
+     [ -e "$f" ] || continue
+     case "$f" in *-status.md|*-follow-ups.md|*-task[0-9]*.md) continue ;; esac
+     grep -q '^status: committed' "$f" && ! grep -q '^parent:' "$f" && echo "$f"
+   done
+   ```
+   If the only committed docs are roadmap task plans, say so and ask for the feature branch instead (a `roadmap` run in progress owns them).
 2. **Ask the user** which plan to execute:
 
 ```

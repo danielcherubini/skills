@@ -52,7 +52,7 @@ Before starting the design flow, check `docs/roadmap/<topic>.md` for the current
 
 ## Hard Gate
 
-Do NOT write code, load the `implement` skill (or any implementation skill) until design is approved. This is a hard stop — and it does not lift into a continuation: even after approval, never flow into implementation on your own. After approval the spec is handed to `specify` — or, when HUGE scope, the user is asked once whether to route to `roadmap` (see After Approval). Neither path flows into implementation on its own; `specify`'s (or `roadmap`'s) own HARD BREAK is the next decision point, and only that confirmation (or an explicit user request) ever leads to `implement`.
+Do NOT write code, load the `implement` skill (or any implementation skill) until design is approved. This is a hard stop — and it does not lift into a continuation: even after approval, never flow into implementation on your own. After approval the spec is handed to `specify` — or, when HUGE scope, the user is asked once whether to route to `roadmap` (see After Approval). Neither path flows into implementation on its own; the next decision point is `specify`'s HARD BREAK, or `roadmap`'s one-time "Proceed autonomously?" entry confirmation — and only that confirmation (or an explicit user request) ever leads to `implement`.
 
 ## Process
 

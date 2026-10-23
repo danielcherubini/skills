@@ -5,7 +5,7 @@ description: Use when asking to improve a codebase, refactor for quality, find a
 
 # Codebase Improvement
 
-Systematic codebase audit that surfaces improvement opportunities through 8 engineering lenses, produces a dated markdown report in `docs/reviews/`, then walks through each finding conversationally. Flows into the standard dev pipeline (discuss → roadmap → specify → implement) after approval.
+Systematic codebase audit that surfaces improvement opportunities through 8 engineering lenses, produces a dated markdown report in `docs/reviews/`, then walks through each finding conversationally. Flows into the standard dev pipeline (roadmap → specify → implement) after approval.
 
 ## Architecture — Read This First
 
@@ -32,7 +32,7 @@ Main agent (YOU — running this skill)
 - "Where should we refactor?", "Surface improvement opportunities"
 - Codebase feels messy but unclear where to start
 
-**Not for:** reviewing a specific PR (use `review`), debugging a specific bug (use `systematic-debugging`), implementing a known change (use `specify` → `implement`, or `roadmap` for multi-task work)
+**Not for:** reviewing a specific PR (use `review`), debugging a specific bug (use `systematic-debugging`), implementing a known change (use `specify` → `implement`; an approved multi-finding backlog goes to `roadmap`)
 
 ## Workflow
 

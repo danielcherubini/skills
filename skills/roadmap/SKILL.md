@@ -40,8 +40,19 @@ Then:
 2. Run **Step 2** (decompose into tasks and mark the seams). Not repeated here.
 3. Present **once** — the measured baseline, the task dependency graph, and the wave breakdown — and ask a
    single `ask` ("Proceed autonomously with this plan?"). After yes, **never ask again** until done.
+   **Roadmap owns the issue-tracker mirror and the commits that consumed `specify` declines.** Mirror the task
+   breakdown as a NEW COMMENT on the spec's issue (the doc's `issue:` key, carried forward per `discuss`'s
+   step 1b / `specify`'s mirror step) — the plan comment is written once here, since consumed mode cannot.
+   No tracker / no `gh` → say so once and continue; it never gates the run.
 4. Create the feature branch: see the `gitflow-branching` skill, branch `feature/<topic>` off `main`. All N
    tasks commit to this one branch. Never commit roadmap tasks onto `main`.
+
+**`<feature>` is defined once, here: it IS the branch topic — `feature/<topic>` → `<feature> = <topic>`.**
+Every artifact this skill writes is named from it (`<feature>-status.md`, `<feature>-taskNN-*.md`,
+`<feature>-follow-ups.md`) and `finish` deletes by the same name. Never derive it from an audit date, a report
+filename, or a spec title, or the status file and task plans will be orphaned on ship. When the entry is
+`discuss`, `<topic>` is already the spec's basename — keep it. When the entry is `codebase-improvement` or
+`research`, there is no spec file at `docs/roadmap/<feature>.md`; that is expected, and `finish` skips it.
 
 ### N=1 degenerate
 
@@ -49,16 +60,23 @@ If decomposition yields exactly one task → skip this skill entirely: hand stra
 `specify`** (no status file, no waves). Roadmap's value is strictly N≥2 or cross-session work; running the
 status-file machinery for a single task is pure overhead.
 
+When the entry was `codebase-improvement` or `research` there is no `docs/roadmap/<topic>.md` for specify's
+"No file" branch to find — **pass the approved block's content forward in the handoff text** (the finding or
+the track, verbatim), and name the report path so specify plans from it instead of asking the user to re-state
+the spec.
+
 ## Grain split
 
 Roadmap and `specify` are not peers — they are a coarse grain over a fine grain.
 
 - **Roadmap = COARSE:** an approved block → N tasks → dependency graph → waves. It carries **no file paths,
   signatures, or TDD steps**; that fine detail does not exist yet at this altitude.
-- **Specify = FINE:** one roadmap task → one commitable plan (exact files, signatures, test commands) plus
-  intra-task waves.
+- **Specify = FINE:** one roadmap task → one commitable plan (exact files, signatures, test commands).
+  A consumed-mode plan is always **single-task and therefore always SERIAL** — `specify`'s six gates and
+  `## Parallelisation` verdict are trivially satisfied, and it emits no `**Parallel:**` lines. Parallelism in
+  a roadmap run lives **between tasks** (waves), never inside one.
 
-Roadmap **delegates** intra-task waves to `specify` and does not re-derive them. Do not restate specify's
+Roadmap **delegates** the fine-grain plan to `specify` and does not re-derive it. Do not restate specify's
 gates here; point at them.
 
 ## Step 1 — Measure the gate before any task
@@ -125,7 +143,7 @@ pathspec, runs the full suite once per wave (and after each serial task), marks 
 tool — don't stall on it. Do the task, one commit, gate re-run before calling it done, verdicts recorded.
 Note once that roles collapsed; a missing tool is not a blocker.
 
-Autonomous mode: never ask the owner **after** the Step 0 Entry confirmation. Decide, record the decision and its evidence, continue.
+Autonomous mode: never ask the owner **after** the Step 0 Entry confirmation. Decide, record the decision and its evidence, continue. The one further ask is `review`'s Phase 8 delivery decision (open a PR / merge) at the very end of Step 5 — that is the run's terminal hand-off, not a mid-loop question, and it is permitted.
 
 ## Step 5 — Ship the record, not just the code
 

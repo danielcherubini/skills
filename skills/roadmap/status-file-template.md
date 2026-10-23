@@ -40,10 +40,13 @@ nothing. One line per wave; note the symbol that forces a later wave.
     Wave 2: B1           (needs A1's `<symbol>`)
 
 ## Tasks
-| # | Task | Plan file | Wave | Status |
-|---|------|-----------|------|--------|
-| A1 | ... | `docs/roadmap/<feature>-task01-<slug>.md` | 1 | `todo` |
-| A2 | ... | `docs/roadmap/<feature>-task02-<slug>.md` | 1 | `done` `<hash>` |
+| # | Task | Plan file | Wave | Seam (disjointness evidence) | Status |
+|---|------|-----------|------|------------------------------|--------|
+| A1 | ... | `docs/roadmap/<feature>-task01-<slug>.md` | 1 | `src/cart.py` (owned outright) | `todo` |
+| A2 | ... | `docs/roadmap/<feature>-task02-<slug>.md` | 1 | `src/pricing.py` | `done` `<hash>` |
+
+The **Seam** column is load-bearing: on resume, wave 1-3 can only be re-verified against the tree from what is
+written here. Record the files/areas each task owns, not a restatement of its text.
 
 ## Blockers / open questions
 Anything that stops the loop. Empty means empty.

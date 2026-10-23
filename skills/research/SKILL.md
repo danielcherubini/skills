@@ -181,7 +181,7 @@ ask({
       { label: "Roadmap — decompose the tracks and run them" }
     ],
     multi: true,
-    description: "**Write report to disk:** Write the final report as a .md file (do NOT re-print it)\n**Discuss findings:** Load the discuss skill to design or plan based on these findings\n**Targeted deep-dive:** Dispatch more researchers on specific gaps\n**Add dimension:** Dispatch a new angle not in original plan\n**Reframe:** Start over with revised question"
+    description: "**Write report to disk:** Write the final report as a .md file (do NOT re-print it)\n**Discuss findings:** Load the discuss skill to design or plan based on these findings\n**Targeted deep-dive:** Dispatch more researchers on specific gaps\n**Add dimension:** Dispatch a new angle not in original plan\n**Reframe:** Start over with revised question\n**Roadmap:** When (and only when) the findings imply multiple separate implementation tracks, load the roadmap skill with those tracks as the approved block (see Phase 5)"
   }]
 })
 ```

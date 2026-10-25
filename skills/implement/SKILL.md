@@ -30,8 +30,12 @@ Read the plan, create a feature branch, dispatch subagents per task, review the 
    - `docs/roadmap/<feature>-status.md` (the run's memory file)
    - `docs/roadmap/<feature>-taskNN-*.md` — per-task plans that carry a `parent:` front-matter key. They are executed by `roadmap` as part of a run, never on their own; offering one here would execute a slice of a feature with its dependencies unbuilt.
    - `docs/roadmap/<feature>-follow-ups.md` (staging notes)
+   - `docs/roadmap/<feature>-ground-*.md` — grounding reports a planner reads; not plans. They carry no
+     `status: committed`, so the status gate below already rejects them — do NOT add a `-ground-` name pattern,
+     which would also eat real plans that merely contain the word (e.g. `team-ground-rules.md`).
 
-   Only a committed doc **without** a `parent:` key is a standalone plan. Filter mechanically rather than by eye:
+   Only a committed doc **without** a `parent:` key is a standalone plan. Filter mechanically rather than by eye —
+   the status/parent test is the filter; name patterns are only for the bookkeeping files that DO look like plans:
    ```bash
    for f in docs/roadmap/*.md; do
      [ -e "$f" ] || continue
@@ -97,7 +101,7 @@ Document the baseline results in your working notes so you know which failures w
 
 After the baseline check and **before dispatching Task 1**, read the plan's `## Parallelisation` section and every task's `**Parallel:**` line, then **independently re-verify it**. The plan's verdict is a proposal from a planner who has not seen the tree since it wrote the plan; you have just run the baseline and you are about to touch the files. Trust your check, not its label.
 
-**Verify per wave, mechanically:** collect each task's `Files:` list (Create + Modify + Test together); compare pairwise — any shared path (shared fixtures, snapshot dirs, `mod.rs`/`__init__.py`/barrel files, route/middleware registration, config, lockfiles, migrations) invalidates the wave; check the build graph for a task consuming a symbol another task in the same wave is creating; split waves larger than 4 (concurrent builds contend for one `target/` / `node_modules/.cache`).
+**Verify per wave, mechanically:** collect each task's `Files:` list (Create + Modify + Test together); compare pairwise — any shared path (shared fixtures, snapshot dirs, `mod.rs`/`__init__.py`/barrel files, route/middleware registration, config, lockfiles, migrations) invalidates the wave; check the build graph for a task consuming a symbol another task in the same wave is creating; split waves larger than 4 implementers (concurrent builds contend for one `target/` / `node_modules/.cache`).
 
 **Then decide, in this order:**
 

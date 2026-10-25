@@ -130,14 +130,19 @@ Return exactly:
 - checkout known → `Run these in <path> (a checkout of ${OWNER}/${REPO}, may be dirty — read-only: no checkout/stash/restore/clean/clone/fetch).`
 - none → `No local checkout exists: skip code probes entirely and say so in Confidence. Never clone or fetch to enable one.`
 
-### `gh` hanging in a subagent — fix stdin, not the network
+### If a command reports a timeout but printed its full output
 
-In a spawned subagent, `gh` (and `curl`, `git`, even `ls`) can appear to hang until the call times out while **the command actually ran and printed its full output**. This is not DNS, not IPv6, not auth — it is the harness waiting on an inherited stdin. Two fixes, in order:
+The likely cause is **your command**, not the toolchain. A backgrounded child
+(`cmd &`, `( … & )`, a `nohup`/watcher) inherits the stdout pipe; EOF never
+arrives, so the harness reports a deadline even though the output landed. Write
+probes that exit: no backgrounding, no dev servers, no watch mode.
 
-1. `< /dev/null gh …` — closes the inherited stdin; usually instant.
-2. `-o file -w '%{http_code}'` to a file, then read the file — output survives the kill.
-
-Do **not** diagnose this as an IPv6/DNS problem and reach for `curl -4`: the hang reproduces on commands that make no network calls. If both fixes fail, report the stall as your finding — do not substitute a guessed value for data you could not read.
+Do **not** invent a cause. Three separate triers confidently blamed IPv6,
+getaddrinfo ordering, and a DNS fault for this — all wrong, all verifiable as
+wrong in one command. `gh` stdin is already closed (`Stdio::null()`), so
+`< /dev/null` is a no-op; adding it is superstition. Quote the real error text,
+or report the stall as a finding. Never hand the orchestrator a diagnosis you
+did not measure.
 
 ## Phase 2: Merge, Present, Hand Off
 
@@ -201,7 +206,7 @@ Verdict labels are the baseline for every issue in scope — apply them uniforml
 | Recommending `gh issue close 6` unprompted | Read-only until the user selects an action. |
 | Guessing `gh` field names (`commentCount`, `authors`) | The verified list is in Phase 1 step 1 — use it verbatim. On an "Unknown JSON field" error, read the "Available fields" the error prints; don't re-guess. |
 | Treating `issueType: null`, empty `subIssuesSummary` as a query failure | Absent/unused fields come back null or empty on repos without issue types or sub-issues. Report them as absent and move on. |
-| Diagnosing a `gh` hang as IPv6/DNS and switching to `curl -4` | The hang reproduces on `ls` — no network involved. It's inherited stdin. See *fix stdin, not the network*. |
+| Diagnosing a `gh` hang as IPv6/DNS and switching to `curl -4` | Measured and false: `gh --version` runs in 0.3s, DNS answers IPv4-only. Check your own command for a backgrounded child first. |
 | "medium" confidence on every issue because cwd is another repo | Find the checkout first and pass it in. State-only verdicts should be the exception, not the default. |
 | "likely stale" on an issue filed hours ago | Staleness needs elapsed time or a merged fix. A busy subsystem argues the opposite. |
 | Explaining a failed API call with an invented cause ("needs a preview header") | `gh api repos/o/r/issues/N/timeline` needs no header — it returns 200. Quote the real error; a silent `[]` means no events, not a failure. |

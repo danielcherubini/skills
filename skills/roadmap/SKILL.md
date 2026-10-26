@@ -37,7 +37,7 @@ The approved block arrives from an entry skill. Know which one, and what to read
 Then:
 
 1. Run **Step 1** (measure the gate baseline). This is mandatory and is not repeated here.
-2. Run **Step 2** (decompose into tasks and mark the seams). Not repeated here.
+2. Run **Step 2** (partition the block into owned-file-set tasks and build the dependency graph). Not repeated here.
 3. Present **once** — the measured baseline, the task dependency graph, and the wave breakdown — and ask a
    single `ask` ("Proceed autonomously with this plan?"). After yes, **never ask again** until done.
    **Roadmap owns the issue-tracker mirror and the commits that consumed `specify` declines.** Mirror the task
@@ -73,12 +73,15 @@ the spec.
 
 Roadmap and `specify` are not peers — they are a coarse grain over a fine grain.
 
-- **Roadmap = COARSE:** an approved block → N tasks → dependency graph → waves. It carries **no file paths,
-  signatures, or TDD steps**; that fine detail does not exist yet at this altitude.
+- **Roadmap = COARSE:** an approved block → N tasks → dependency graph → waves. It carries **no signatures or
+  TDD steps**; that fine detail does not exist yet at this altitude. It DOES carry each task's **owned file set**
+  — that is the disjointness evidence at this grain, and the only thing making waves verifiable.
 - **Specify = FINE:** one roadmap task → one commitable plan (exact files, signatures, test commands).
-  A consumed-mode plan is always **single-task and therefore always SERIAL** — `specify`'s six gates and
-  `## Parallelisation` verdict are trivially satisfied, and it emits no `**Parallel:**` lines. Parallelism in
-  a roadmap run lives **between tasks** (waves), never inside one.
+  A roadmap task is **one commitable unit, which may be a run of serial steps** — four steps that must follow
+  each other are one task with four `Steps:` checkboxes, not four tasks in four waves. A consumed-mode plan is
+  therefore always **SERIAL**: `specify`'s six gates and `## Parallelisation` verdict are trivially satisfied
+  and it emits no `**Parallel:**` lines. Parallelism in a roadmap run lives **between tasks** (waves), never
+  inside one.
 
 Roadmap **delegates** the fine-grain plan to `specify` and does not re-derive it. Do not restate specify's
 gates here; point at them.
@@ -90,29 +93,79 @@ started a six-finding fix assuming a green suite while `npm test` failed on a br
 perfect code — every later "green" was meaningless. A gate you have not measured is decoration. Require
 version control: a shared directory with no git turned two concurrent writers into silent data loss.
 
-## Step 2 — Decompose, then mark the seams
+## Step 2 — Partition by file ownership, not by finding
 
-Split into tasks that each end in one commit. Decide **serial or parallel** per pair and record it — a
-future reader must not re-derive it. N tasks = **N commits on ONE feature branch → one PR** at review.
+**The single biggest cause of a slow run is decomposing by logical unit.** One task per finding, one task per
+design section — that is the natural instinct, and on a real codebase it produces a chain of serial waves,
+because several findings land in the same file and a wave that collides collapses to one member. Observed: a
+12-task audit run where **every wave was serial** — 12 sequential plan+implement round-trips, planning alone
+about two thirds of the wall clock. The chain was not a property of the work. It was a property of the cut.
 
-Task waves use the **same six parallelisation gates `specify` defines** (they live in `skills/specify/SKILL.md`
-and `skills/specify/guides/guide-parallelisation.md`), applied at task grain. Roadmap tasks carry no `Files:`
-lists, so disjointness is judged at decomposition time from each task's declared seam, then **re-verified
-against the tree before dispatch** (Step 3: the tree outranks the text).
+**Partition by disjoint file ownership instead.** Two tasks that touch the same file can never run together —
+so they were never siblings; **they are one task.** Cut so that each task owns a set of files no other task
+touches, and collisions are impossible by construction: the only serial edges left are real build-graph
+dependencies (task B consumes a symbol task A creates), and those are genuine.
+
+Every task still ends in exactly one commit, and every task commits to the one feature branch from Step 0 —
+so a run is **one branch → one PR** however the tasks are cut.
+
+Work through the block once, listing every file it touches, then group:
 
 ```
-Parallelises:  research, ground-truth surveys, planning, review, audit, verification — and independent
-               implementation tasks whose seams are disjoint files.
-Never:         two tasks editing the same file, a shared lockfile/migration/barrel, or one shared fixture.
+1. Inventory   every file the approved block will touch, including lockfiles, barrels,
+               shared fixtures, migrations, route/middleware registration.
+2. Group       files that must change together (or that any two findings both touch) into ONE owned set.
+               That set is one task.
+3. Edge        add a dependency only where B consumes a symbol A creates — never because
+               A and B "feel related". Related-but-disjoint is exactly what parallel is for.
+4. Wave        the transitive levels of that graph. Width is a result of the cut, so if the
+               graph comes out a chain, the cut is wrong: re-cut and merge.
 ```
+
+**Merge a serial run into one task.** Four steps that must run one-after-another are one task with four steps,
+not four tasks in four waves — you pay one `specify` and one implementer instead of four of each, and the
+plan's `Steps:` checkboxes carry the sequencing and the resume points. Coarsen **planning** aggressively (a
+plan for four serial steps is one document, and cost is roughly flat); coarsen **implementation** only to a
+child's ceiling.
+
+**The ceiling, as a number you can compute at Step 2:** a merged task should stay under roughly **6 `Steps:`
+checkboxes, 8 owned files, and one test tree**. Over that, split it at a file-set boundary and accept the serial
+edge. This is deliberately asymmetric — merging is cheap for *planning* and expensive for *implementation*,
+because an implementer that compacts mid-task loses its grounding and re-reads, which is worse than two smaller
+children. When in doubt, merge the plan and split the work.
+
+**When the graph really is a chain, stop re-cutting.** If several findings must edit the same hot file, width-1
+waves are the honest shape of the work and no re-cut fixes it. Then the goal changes from parallelism to
+**dispatch count**: merge them into as few tasks as the ceiling allows, and still pipeline next-wave planning
+over implementation — a chain of 3 fat tasks beats a chain of 12 thin ones on wall clock even though both are
+serial. Record the reason in the status file (`Wave 2 width 1 — all findings touch harness.rs`) so the next
+iteration does not re-litigate the cut.
+
+Record the ownership set per task in the status file's **Owns** column and the dependency graph in its
+persisted section — a future reader must not re-derive either.
+
+```
+Parallelises:  research, planning, review, audit, verification, and implementation tasks whose OWNED FILE
+               SETS are disjoint.
+Never:         two tasks owning the same file, a shared lockfile/migration/barrel, or one shared fixture.
+```
+
+Task waves use the **same six parallelisation gates `specify` defines** (in `skills/specify/SKILL.md` and
+`skills/specify/guides/guide-parallelisation.md`), applied at task grain — the ownership set is the `Files:`
+list at this altitude. **Re-verify the sets against the tree before dispatch** (Step 3: the tree outranks the
+text), because a task whose real edits land outside its declared set silently breaks the wave's disjointness.
 
 The wave protocol itself (children never commit; the orchestrator commits by pathspec; scoped in-wave tests;
-full suite once per wave; ≤4 per wave; a BLOCKED sibling holds the wave) is **defined** in
+full suite once per wave; ≤4 implementers per wave; a BLOCKED sibling holds the wave) is **defined** in
 `../implement/guides/guide-parallel-execution.md` — reference it, do not restate it.
 
+The ≤4 cap counts **implementers**, not planners. It exists because concurrent builds contend for one
+`target/` / `node_modules/.cache`; a planner runs no build and writes only its own unique plan path, so
+planning fans out to the width of the graph and is not capped at 4.
+
 The gate runs against one working tree, so child A's red gate would be caused by child B's half-finished
-edits, destroying the loop's only signal. Disjoint-file tasks are safe to run together (no shared content, no
-commit — the orchestrator commits). Read-only agents have no tree to corrupt at all — fan them out; that is
+edits, destroying the loop's only signal. Disjoint-ownership tasks are safe to run together (no shared content,
+no commit — the orchestrator commits). Read-only agents have no tree to corrupt at all — fan them out; that is
 where the wall-clock win is. Phase order: risk first, then size; cheapest win first inside a phase.
 
 ## Step 3 — Verify each task against the tree, every iteration
@@ -134,32 +187,71 @@ you were asked to do.**
 
 **REQUIRED READ:** `status-file-template.md` — format, protocol, truthfulness rules.
 
-Per iteration: read status file → first `todo` task → if its wave siblings are disjoint (judged from the
-**Seam** column), handle them together, else one at a time.
+**The unit of the loop is the WAVE, not the task.** Read the status file → the first wave containing a `todo`
+task → run the six steps below for the whole wave at once. Their ownership sets are disjoint by construction
+(Step 2), which is what makes "all the planners at once" safe.
 
 **You own every sub-agent dispatch in this loop.** A consumed-`specify` run is a dispatched `general` child and
 has **no `subagent` tool** — it cannot ground itself with a researcher or vet itself with a reviewer. If you
-delegate those to it, they silently do not happen and you ship an un-grounded, un-vetted plan. Per task, in
-order:
+delegate those to it, they silently do not happen and you ship an un-grounded, un-vetted plan.
 
-1. **Ground** — dispatch `researcher` for the task (existing files, real signatures verbatim, conventions, exact
-   test/build commands, integration points, anything already implemented). Read-only, so ground the whole wave's
-   tasks in one response.
-2. **Plan** — dispatch consumed `specify` with the literal marker `SPECIFY CONSUMED MODE`, the task's
-   decomposition text, **the grounding report from step 1** (the child cannot fetch it), and
-   `target: docs/roadmap/<feature>-taskNN-<slug>.md`.
-3. **Vet** — dispatch `reviewer` against the plan file it wrote (max 3 rounds). Findings → re-dispatch consumed
-   `specify` to **refine that same target in place**; do not fix the plan yourself.
-4. **Commit the plan docs** — your commit, by pathspec: either a `docs: plan <feature> taskNN` commit or folded
-   into the task's source commit. Consumed `specify` is forbidden from committing, so if you skip this the plan
-   is never recorded.
+**Ground once per area, to disk — never per task.** This is the single biggest cost lever in the loop. Observed:
+a consumed-`specify` child handed no grounding burned **359.7k tokens (281% of its budget) across 88 tool calls
+and 57 minutes** — it blew its context, compacted, forgot what it had read, and read it again. Every planner you
+send without shared grounding repeats that. One `researcher` per code **area** (not per task) writes a report to
+`docs/roadmap/<feature>-ground-<area>.md`; every planner for that area reads the file. Re-derivation becomes one
+read instead of eighty tool calls.
+
+An **area** is a cluster of files that change together and that planners will share — a module, a subsystem, a
+test tree. Size it by what a planner needs to read to plan any task inside it, not by the task list: several
+tasks in one area share one report. Record the area → report mapping in the status file.
+
+Per wave, in order:
+
+1. **Ground** — one `researcher` per not-yet-grounded area, all calls in one response: existing files, real
+   signatures quoted verbatim, conventions, exact test/build commands, integration points, anything already
+   implemented. Each writes `docs/roadmap/<feature>-ground-<area>.md` with NO `status: committed` front-matter —
+   that key marks an executable plan, and a report carrying it would get offered to `implement` as one. Re-ground
+   an area only when the tree has moved inside it since the report.
+2. **Plan** — dispatch consumed `specify` **for every task in the wave that has no plan file yet, in one
+   response** (on resume, tasks already planned in a half-finished wave are skipped, not re-planned) — the literal marker
+   `SPECIFY CONSUMED MODE`, the task's decomposition text, its **owned file set**, the **path** to the grounding
+   file (not its contents pasted through your context), and
+   `target: docs/roadmap/<feature>-taskNN-<slug>.md`. Planning is read-only and each child writes only its own
+   unique target, so this fans out to the width of the graph — **not** capped at 4.
+3. **Vet** — one `reviewer` per plan file, in one response (max 3 rounds each). Tell it to **open the files the
+   plan names** — a plan written from a grounding report that has since gone stale reads fluently and is wrong
+   everywhere, and only reading the tree catches that. Findings → re-dispatch consumed `specify` to **refine
+   that same target in place**; do not fix the plan yourself.
+4. **Commit the plan docs** — your commit, by pathspec (`docs: plan <feature> taskNN…`). Consumed `specify` is
+   forbidden from committing, so if you skip this the plan is never recorded and the next session re-plans it.
 5. **Implement** — dispatch per the wave protocol (children don't commit; you commit by pathspec; scoped tests
    in-wave).
-6. **Gate** — full suite once per wave (and after each serial task), mark `done`, update the file **before** the
-   next task.
+6. **Gate** — full suite once per wave, mark `done`, update the file **before** the next task.
 
-Two read-only dispatches per task (researcher + reviewer) is the designed cost, not waste — it is what stops
-invented paths from reaching the implementation child. The orchestrator never edits source itself.
+**Pipeline the next wave's planning over this wave's implementation.** A planner reads its own area and writes
+only its own plan file; an implementer writes only its owned set. Those do not collide, so while implementers run,
+dispatch planning for the next wave's tasks in the same response. Wall clock approaches max(plan, implement)
+instead of plan + implement. Four bounds, all of them real:
+
+- **Only plan areas the running wave does not touch.** An implementer's edits land in its owned set; a planner
+  reading that set mid-edit records signatures that do not exist yet, and the report is poisoned for every
+  planner that reads it afterwards.
+- **Shared mutable files belong to the running wave** — lockfile, barrel, `mod.rs`/`__init__.py`, shared
+  fixtures, route registration — even if the planner only reads them.
+- **Ground the next wave before implementing this one.** A researcher runs no build and is quick; a planner is
+  cheap once the report exists. The thing you must not overlap is a *researcher* reading a tree implementers are
+  actively mutating.
+- **A BLOCKED implementer does not cancel the plans already in flight**, but do not commit them until the wave
+  resolves — a re-cut wave invalidates them, and committing plans for a wave that never ran leaves the status
+  file describing work that will not happen.
+
+**Watch the child's budget, not just the count.** A child that compacts mid-task loses its grounding and re-reads
+— the 88-tool-call planner above is that failure, not a slow model. If a task blew past Step 2's ceiling
+(6 steps / 8 files / one test tree) and its implementer compacted, split it at a file-set boundary and re-dispatch
+two halves; do not simply re-run the same oversized dispatch and hope.
+
+The orchestrator never edits source itself.
 
 **Roles:** that dispatch is the *orchestrator's* job. As the implementation child you have no subagent
 tool — don't stall on it. Do the task, one commit, gate re-run before calling it done, verdicts recorded.
@@ -193,6 +285,10 @@ family (plan, status, task plans, and follow-ups) after any follow-ups content i
 | Pay any cost to satisfy a criterion exactly | A Proxy-and-freeze rewrite where a limit note fit |
 | Child stalls: "no subagent tool here" | Nothing ships; dispatch is the orchestrator's job |
 | Telling the consumed-`specify` child to "ground with researcher and vet with reviewer" | Those dispatches silently never happen — a child has no subagent tool. YOU dispatch researcher and reviewer; the child only writes the plan |
+| One task per finding / per design section | Same file lands in two tasks → every wave collapses to one member → a chain of serial waves. Partition by owned file set instead |
+| Four serial steps split into four tasks | Four `specify` dispatches and four implementers where one of each was enough. Merge a serial run into one task |
+| Handing each planner no grounding, or the report pasted through your context | Each planner re-reads the whole tree: observed 359.7k tokens / 88 tool calls / 281% of budget, compacting and re-reading. Ground once per area **to disk**; pass the planner the path |
+| Applying the ≤4 wave cap to planners | The cap is for build-cache contention. Planning is read-only — fan it out to the width of the graph |
 
 **Violating the letter of these rules is violating their spirit.** "I'll note the phase status once, it's
 obvious" is how four contradictory headings got written.

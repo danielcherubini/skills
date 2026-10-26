@@ -33,10 +33,12 @@ Entered **only** when the invoking task text contains the exact marker `SPECIFY 
 (`general`), which has **no `subagent` tool** — so consumed mode never dispatches anything itself; the caller
 owns every sub-agent. In consumed mode:
 
-- Plan exactly **ONE task** (described by the task text), NOT a whole feature.
+- Plan exactly **ONE task** (described by the task text), NOT a whole feature. The invocation also supplies a
+  **grounding report path** and the task's **owned file set** — consume both (see *Ground the Plan First*); a
+  missing report path is the only grounding you should ever have to do yourself.
 - **Ground the plan inline** — read the files, grep the real signatures, confirm each path exists (see *Ground the Plan First*). If you genuinely have a `subagent` tool, dispatch `researcher` instead and say so.
 - The target path is the `target:` stated in the invocation text (e.g. `docs/roadmap/<feature>-taskNN-<slug>.md`). If no `target:` is present, **stop and report NEEDS_CONTEXT** — never guess a path.
-- Write the plan to the target path with front-matter `status: committed`, a `parent: docs/roadmap/<feature>.md` key, and `done-when`.
+- Write the plan to the target path with front-matter `status: committed`, a `parent: docs/roadmap/<feature>.md` key, and `done-when`. The target file is the **only** file you write — never a grounding report, never source, never the status file.
 - **The reviewer vet is the caller's, not yours.** Do not dispatch a reviewer — a child cannot, and promising one silently produces an un-vetted plan. `roadmap` vets the plan you write (see its Step 4) and re-dispatches you to refine it if the vet finds anything. If you *are* running with a `subagent` tool, run the vet as described in *After Plan is Written*.
 - Perform **neither** the spec-doc commit **nor** the issue-tracker mirror — the caller (`roadmap`) owns both.
 - Do **NOT** perform the HARD BREAK, do **NOT** call `ask`, do **NOT** load the `implement` skill. Return control with a one-line "plan written to <target>" report, plus anything you could not verify so the caller's vet can target it.
@@ -66,9 +68,19 @@ stall looking for a tool you were never given:
 
 - **You have a `subagent` tool** (you are the main agent, running standalone `specify`) → **dispatch
   `researcher`** and write the plan from its report.
-- **You do not** (you were dispatched as a child, which is how `roadmap` runs consumed `specify`) → **ground
-  yourself**: read the files, grep the real signatures, confirm every path exists. Say once that you are
-  grounding inline because you have no subagent tool. Never report this as a blocker.
+- **You do not** (you were dispatched as a child, which is how `roadmap` runs consumed `specify`) → **read the
+  grounding report the caller hands you.** A `roadmap` dispatch supplies a path like
+  `docs/roadmap/<feature>-ground-<area>.md`; open it and plan from it. It already contains the file inventory,
+  the verbatim signatures, and the test commands — that is why it exists.
+  - **Read the report first, then read only what it does not answer.** Do not re-walk the tree to re-confirm
+    what the report already states. A planning child that ignored its report and re-derived the codebase from
+    scratch cost **359.7k tokens / 88 tool calls / 281% of its context budget**, compacting and re-reading as it
+    went — the report is the fix for exactly that, so ignoring it is the expensive choice, not the careful one.
+  - Stay inside the **owned file set** the caller gave you: read your set and the report, and treat files
+    outside it as out of scope.
+  - No report was supplied? Then ground yourself — read the files, grep the real signatures, confirm each path
+    exists — and **say in your report back that no grounding was supplied**, so the caller fixes it for the rest
+    of the run. Say once that you are grounding inline; never report it as a blocker.
 - Either way the plan must be grounded. The mechanism changes; the requirement does not.
 
 When dispatching, one `researcher` per independent area of the change — all calls in **one response** so they
@@ -98,9 +110,10 @@ Sources: local codebase. Report findings with paths; flag anything you could NOT
   actionable; a confident guess is not. The caller's reviewer uses these to target its vet.
 - **Scale to the work** — a one-file change needs one quick researcher; a multi-area feature needs one per area.
   Two angles that depend on each other are one angle with N steps: give them to a single researcher.
-- **Consumed mode:** scope the grounding to the single task being planned — the caller supplied one task, not
-  the whole feature. No `ask` is permitted, so never pause to query the user about a gap; record it as
-  `UNVERIFIED: <reason>` in the plan instead.
+- **Consumed mode:** the caller supplies a **grounding report path** and the task's **owned file set**. Read the
+  report; do not re-derive the tree. Scope everything to the owned set — the caller uses it to prove the wave's
+  tasks are disjoint, so a plan that reaches outside it breaks the wave. No `ask` is permitted, so never pause to
+  query the user about a gap; record it as `UNVERIFIED: <reason>` in the plan instead.
 
 Never skip grounding silently. If you could not ground part of the plan, say so in the plan itself rather
 than writing a confident path you never opened.
@@ -167,6 +180,8 @@ done-when: <observable exit condition — what does "shipped" look like for a re
 A short paragraph explaining *why* this task exists, what problem it solves, and how it fits into the overall feature. Include any decisions already made and why. Do not assume the agent knows anything about the conversation.
 
 **Files:**
+<!-- In consumed mode these MUST fall inside the owned file set the caller gave you. A file outside it is not
+     yours to change: mark it `UNVERIFIED: outside owned set` and report it, never silently add it. -->
 - Create: `exact/path/file.ext`
 - Modify: `exact/path/existing.ext`
 - Test: `tests/path/test.ext`

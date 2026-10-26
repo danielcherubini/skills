@@ -72,11 +72,16 @@ addition to general code quality.
 
 #### Find the active plan
 
-1. List the roadmap docs — excluding `roadmap`-run bookkeeping (`*-status.md`, `*-task*.md`,
-   `*-follow-ups.md`), which are not standalone plans:
+1. List the roadmap docs — excluding **this feature's** `roadmap`-run bookkeeping (`-status`, `-follow-ups`,
+   `-ground-<area>`, `-taskNN`), which are not standalone plans. Anchor the patterns to the feature name; a bare
+   `-ground-` also drops real plans that merely contain the word (`team-ground-rules.md`,
+   `play-ground-refactor.md`):
    ```bash
-   ls docs/roadmap/*.md 2>/dev/null | grep -Ev -- '-(status|follow-ups)\.md$|-task[0-9][0-9]+-'
+   FEATURE=$(git branch --show-current | sed 's|^[^/]*/||')
+   ls docs/roadmap/*.md 2>/dev/null | grep -Ev -- \
+     "^docs/roadmap/${FEATURE}-(status|follow-ups|ground-|task[0-9])"
    ```
+   A grounding report also carries no `status: committed`, so step 2's status test rejects it anyway.
 
 2. Match the current branch against the doc names — a `feature/<topic>` branch usually
    corresponds to `docs/roadmap/<topic>.md`:
@@ -87,7 +92,9 @@ addition to general code quality.
 
 3. If you can identify the plan (e.g., `docs/roadmap/auth-middleware.md`), read it.
 
-4. If no clear match, pick the most recently modified doc, or ask the user which plan applies.
+4. If no clear match, pick the most recently modified doc **that passed step 1** — never fall back to a
+   bookkeeping file you just filtered out (grounding reports are the freshest files in `docs/roadmap/` during a
+   run, so a naive mtime pick lands on one). When nothing survives step 1, ask the user which plan applies.
 
 #### Build instructions from the plan
 

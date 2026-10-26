@@ -7,9 +7,9 @@ How to verify a plan's waves against the real tree, run them safely, and commit 
 This protocol governs waves at **two grains**:
 
 - **(a) Intra-plan** — sub-tasks within one committed plan. `specify` emits the `**Parallel:**` lines, and each task's `Files:` list is the disjointness evidence.
-- **(b) Inter-task** — roadmap tasks within a run. `roadmap` emits the wave grouping and judges disjointness from each task's declared seam, re-verified against the tree, since roadmap tasks carry no `Files:` lists.
+- **(b) Inter-task** — roadmap tasks within a run. `roadmap` emits the wave grouping and judges disjointness from each task's **owned file set** (its status-file `Owns` column), re-verified against the tree — the ownership set is the `Files:` list at task grain.
 
-Both use the **identical invariants**: children never commit, the orchestrator commits by pathspec, scoped in-wave verification, full suite once per wave, ≤4 per wave, a BLOCKED sibling holds the wave. Only the *evidence* for gate 1 (disjoint files) differs by grain. **Roadmap applies this protocol directly and does NOT load the `implement` skill per task.**
+Both use the **identical invariants**: children never commit, the orchestrator commits by pathspec, scoped in-wave verification, full suite once per wave, ≤4 **implementers** per wave (read-only dispatches are not capped — see check 4), a BLOCKED sibling holds the wave. Only the *evidence* for gate 1 (disjoint files) differs by grain. **Roadmap applies this protocol directly and does NOT load the `implement` skill per task.**
 
 ## Why you re-verify instead of obeying
 
@@ -25,12 +25,12 @@ Also treat the plan's labels as load-bearing data. A `**Parallel:**` line missin
 
 For each declared wave:
 
-**At task grain (roadmap), substitute *declared seam re-verified against the tree* for `Files:` in steps 1–2, and skip the `**Parallel:**`-line integrity test below** — roadmap tasks carry no `Files:` lists and no `**Parallel:**` lines.
+**At task grain (roadmap), substitute each task's *owned file set (`Owns` column), re-verified against the tree* for `Files:` in steps 1–2, and skip the `**Parallel:**`-line integrity test below** — roadmap tasks carry no `**Parallel:**` lines. A task whose real edits land outside its `Owns` set breaks the wave's disjointness: treat it as a failed wave and let roadmap merge or re-cut.
 
 1. Collect each task's `Files:` list — Create + Modify + Test together.
 2. Compare pairwise. Any shared path fails the wave. Include: shared fixtures, snapshot dirs, `mod.rs` / `__init__.py` / barrel files, route or middleware registration, config, lockfiles, migrations.
 3. Check the build graph. Does a task in the wave consume a symbol another task in the same wave is creating? If yes, split — the consumer goes in a later wave.
-4. Size. More than 4 → split into consecutive waves; concurrent builds contend for one `target/` / `node_modules/.cache` and the speedup evaporates.
+4. Size. More than 4 **implementers** → split into consecutive waves; concurrent builds contend for one `target/` / `node_modules/.cache` and the speedup evaporates. This cap counts implementers only — read-only dispatches (planners, researchers) run no build and are not capped.
 
 Then, in order:
 

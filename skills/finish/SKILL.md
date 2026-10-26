@@ -160,7 +160,10 @@ removed=0
 for f in "docs/roadmap/${FEATURE_NAME}.md" \
          "docs/roadmap/${FEATURE_NAME}-status.md" \
          "docs/roadmap/${FEATURE_NAME}-follow-ups.md" \
+         docs/roadmap/"${FEATURE_NAME}"-ground-*.md \
          docs/roadmap/"${FEATURE_NAME}"-task[0-9][0-9]*.md; do
+  # `-ground-*` is anchored to ${FEATURE_NAME} on purpose: a bare `-ground-` would also match an
+  # unrelated doc that merely contains the word (play-ground-refactor.md).
   [ -e "$f" ] || continue
   # `rm`, not `git rm`: the status file and task plans are written by the roadmap run and are
   # frequently UNTRACKED or locally modified, which `git rm` refuses without -f.
@@ -177,7 +180,7 @@ if ! git diff --cached --quiet; then
 fi
 ```
 
-The glob names each roadmap artifact explicitly (`<feature>.md`, `-status`, `-follow-ups`, `-taskNN`), so a sibling like `user-auth-v2.md` is never touched and the glob can never widen to `docs/roadmap/*.md`. If `docs/roadmap/<feature>.md` does not exist (a roadmap run whose entry was `codebase-improvement` or `research` has no spec file), the matching entries are simply skipped.
+The glob names each roadmap artifact explicitly and **always prefixed by `${FEATURE_NAME}`** (`<feature>.md`, `-status`, `-follow-ups`, `-ground-<area>`, `-taskNN`), so a sibling like `user-auth-v2.md` — or an unrelated `play-ground-refactor.md` — is never touched and the glob can never widen to `docs/roadmap/*.md`. If `docs/roadmap/<feature>.md` does not exist (a roadmap run whose entry was `codebase-improvement` or `research` has no spec file), the matching entries are simply skipped.
 
 If the plan contained durable architectural decisions, fold them into `docs/features/<feature>.md` or `docs/decisions/` before deleting.
 

@@ -35,8 +35,13 @@ You receive a review type in your prompt. Adjust your review focus accordingly:
 
 ### Plan Review (type: "plan")
 
+**Open the files the plan names — do not review the prose alone.** A plan is a set of claims about the tree
+(paths exist, signatures look like this, this command runs the tests), and only reading the tree tells you
+whether those claims are still true. A plan written from a grounding report that went stale reads perfectly and
+is wrong everywhere; nothing else in the pipeline catches that.
+
 - Are tasks independently commitable?
-- Do tasks have correct file paths, function names, and test commands?
+- Do tasks have correct file paths, function names, and test commands? **Check each one against the file.**
 - Are TDD steps included in every task?
 - Are acceptance criteria specific and verifiable?
 - Are logical dependencies between tasks documented?

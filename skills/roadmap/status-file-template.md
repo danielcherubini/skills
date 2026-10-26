@@ -19,19 +19,40 @@ updated: YYYY-MM-DD
 One paragraph: what "finished" means, and which source document the work comes from.
 
 ## Operating mode
-Loop protocol (repeat until `status: done`):
-1. Read this file. Take the FIRST task whose Status is `todo`. Do not pick, reorder, or skip.
-2. Verify the task against the tree before doing it. Trust the tree over the task text.
-3. YOU dispatch `researcher` to ground the task (the plan child cannot — it has no subagent tool).
-4. YOU dispatch `specify` in CONSUMED MODE (marker `SPECIFY CONSUMED MODE`, the task text, the grounding
-   report, and `target: docs/roadmap/<feature>-taskNN-<slug>.md`).
-5. YOU dispatch `reviewer` on the plan file (max 3 rounds); findings -> re-dispatch consumed specify to refine
-   the same target. Commit the plan doc yourself — the child is forbidden from committing.
-6. Implement: wave siblings together per implement's wave protocol (children don't commit; you commit by
-   pathspec; scoped tests in-wave). Serial tasks: one `general` subagent, one commit.
-7. Run the gate (full suite once per wave). Green -> commit by pathspec -> mark `done` here -> one Changelog
+The whole wave moves at once — planning fans out, it is not one task at a time.
+
+**On every resume, before dispatching anything:** run `git status --porcelain`. Uncommitted edits inside some
+task's Owns set mean the previous iteration died **mid-implementation** — that task is `implemented`, not
+`todo`, and its siblings may be half-written. Commit or set aside those edits first; never dispatch a new wave
+on a dirty tree. Then re-derive every task's state from the table's Status tests (plan file? changelog?
+commit?) — the tree outranks whatever value is written, so correct the column before acting on it.
+
+Loop protocol, per WAVE, repeat until `status: done`:
+1. Read this file. Take the FIRST wave containing a task whose Status is not `done`. Do not pick, reorder, or
+   skip. **Re-entering a half-finished wave resumes at the first incomplete step below — never re-dispatch a
+   step whose output already exists** (area already in the Grounding reports table → skip grounding it; plan
+   file already present → skip planning it).
+2. Verify each task in the wave against the tree. Trust the tree over the task text. Re-check the Owns sets
+   are still disjoint — the tree outranks this table.
+3. Ground: one `researcher` per area not yet grounded, all in one response, each WRITING
+   `docs/roadmap/<feature>-ground-<area>.md`. Never ground per task — a planner handed no grounding re-reads
+   the whole tree (observed: 359.7k tokens / 88 tool calls / 281% of budget).
+4. Plan: dispatch `specify` in CONSUMED MODE for every todo task in the wave that has NO plan file yet (on
+   resume, skip tasks already planned in a half-finished wave), all in one response — marker
+   `SPECIFY CONSUMED MODE`, the task text, its Owns set, the grounding FILE PATH (not its contents), and
+   `target: docs/roadmap/<feature>-taskNN-<slug>.md`. Not capped at 4; planning is read-only.
+5. Vet: one `reviewer` per plan file in one response (max 3 rounds each), told to OPEN the files the plan
+   names; findings -> re-dispatch consumed specify to refine the SAME target.
+6. Commit the plan docs yourself, by pathspec — the child is forbidden from committing, so an uncommitted plan
+   gets re-planned by the next session.
+7. Implement the wave per implement's wave protocol (children don't commit; you commit by pathspec; scoped
+   tests in-wave; <=4 implementers). In the SAME response, dispatch planning for the NEXT wave's tasks —
+   only for areas this wave's implementers do not touch. That overlap is where the wall-clock is won.
+8. Run the gate (full suite once per wave). Green -> commit by pathspec -> mark `done` here -> one Changelog
    line. Red -> re-dispatch; never fix by hand in the orchestrator.
-8. Update THIS FILE before starting the next task. Then loop.
+9. Update THIS FILE before starting the next wave. Then loop.
+
+Steps 3-8 are roadmap's Step 4, same order, same meaning.
 
 ## Gate — establish before task 1, re-run after every wave (and after each serial task)
     <exact commands, from which directory>
@@ -40,17 +61,49 @@ Baseline measured at <commit>: <N files / M tests, pass/fail>.
 ## Dependency graph / waves
 The persisted wave grouping — the loop's only memory must carry it, or a future iteration re-derives it from
 nothing. One line per wave; note the symbol that forces a later wave.
-    Wave 1: A1, A2, A3   (disjoint seams)
+    Wave 1: A1, A2, A3   (owned file sets disjoint)
     Wave 2: B1           (needs A1's `<symbol>`)
 
-## Tasks
-| # | Task | Plan file | Wave | Seam (disjointness evidence) | Status |
-|---|------|-----------|------|------------------------------|--------|
-| A1 | ... | `docs/roadmap/<feature>-task01-<slug>.md` | 1 | `src/cart.py` (owned outright) | `todo` |
-| A2 | ... | `docs/roadmap/<feature>-task02-<slug>.md` | 1 | `src/pricing.py` | `done` `<hash>` |
+**A chain of all-serial waves usually means the cut is wrong.** Two tasks sharing a file are ONE task — go back
+to Step 2 and merge. But if several findings genuinely must edit the same hot file, width-1 is the honest shape:
+stop re-cutting, merge down to as few tasks as the ceiling allows (6 steps / 8 files / one test tree), and
+**record the reason** here so the next iteration does not re-litigate it:
+    Wave 2 width 1 — all findings touch src-tauri/src/inline.rs
 
-The **Seam** column is load-bearing: on resume, wave 1-3 can only be re-verified against the tree from what is
-written here. Record the files/areas each task owns, not a restatement of its text.
+## Grounding reports
+One per code AREA, written once, read by every planner for that area. Re-ground only if the tree moved inside
+the area.
+| Area | Report | Grounded at |
+|---|---|---|
+| harness | `docs/roadmap/<feature>-ground-harness.md` | `<commit>` |
+
+A row here means that area is grounded AT THAT COMMIT. Re-ground only if the tree has moved inside the area
+since — `git log --oneline <commit>..HEAD -- <area paths>`, not a feeling.
+
+## Tasks
+| # | Task | Area | Plan file | Wave | Owns (file set — disjointness evidence) | Status |
+|---|------|------|-----------|------|------------------------------------------|--------|
+| A1 | ... | harness | `docs/roadmap/<feature>-task01-<slug>.md` | 1 | `src/cart.py`, `tests/test_cart.py` | `todo` |
+| A2 | ... | harness | `docs/roadmap/<feature>-task02-<slug>.md` | 1 | `src/pricing.py`, `tests/test_pricing.py` | `done` `<hash>` |
+
+**Status is exactly one of these, and each is checkable from the tree without asking anyone:**
+
+| Value | True when |
+|---|---|
+| `todo` | no plan file at the Plan path |
+| `planned` | plan file exists |
+| `vetted` | plan file exists **and** a Changelog line records the vet round for it |
+| `implemented` | the task's edits exist in the tree but are not committed |
+| `done` `<hash>` | committed, gate green |
+
+Write the value only when its test passes — `done` still means the acceptance criterion measured true, not that
+steps ran. These are task states, not phase prose: never add a sentence summarising a wave's state, derive it
+from the rows.
+
+The **Owns** column is load-bearing: on resume, waves can only be re-verified against the tree from what is
+written here, and it is what the planner is scoped to. A task whose real edits land outside its Owns set has
+broken the wave — fix the table or merge the tasks. **Area** names which grounding report the task reads, so a
+resumed loop does not re-ground an area that is already reported. Do not restate the task's prose here; list files.
 
 ## Blockers / open questions
 Anything that stops the loop. Empty means empty.

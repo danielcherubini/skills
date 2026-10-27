@@ -37,7 +37,7 @@ Loop protocol, per WAVE, repeat until `status: done`:
 3. Ground: one `researcher` per area not yet grounded, all in one response, each WRITING
    `docs/roadmap/<feature>-ground-<area>.md`. Never ground per task — a planner handed no grounding re-reads
    the whole tree (observed: 359.7k tokens / 88 tool calls / 281% of budget).
-4. Plan: dispatch `specify` in CONSUMED MODE for every todo task in the wave that has NO plan file yet (on
+4. Plan: dispatch `specify` in CONSUMED MODE to `researcher` (`agentName: "researcher"`) for every todo task in the wave that has NO plan file yet (on
    resume, skip tasks already planned in a half-finished wave), all in one response — marker
    `SPECIFY CONSUMED MODE`, the task text, its Owns set, the grounding FILE PATH (not its contents), and
    `target: docs/roadmap/<feature>-taskNN-<slug>.md`. Not capped at 4; planning is read-only.

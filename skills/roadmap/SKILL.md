@@ -191,8 +191,8 @@ you were asked to do.**
 task → run the six steps below for the whole wave at once. Their ownership sets are disjoint by construction
 (Step 2), which is what makes "all the planners at once" safe.
 
-**You own every sub-agent dispatch in this loop.** A consumed-`specify` run is a dispatched `general` child and
-has **no `subagent` tool** — it cannot ground itself with a researcher or vet itself with a reviewer. If you
+**You own every sub-agent dispatch in this loop.** A consumed-`specify` run is a dispatched `researcher` child
+(`agentName: "researcher"`) and has **no `subagent` tool** — it cannot ground itself with a researcher or vet itself with a reviewer. If you
 delegate those to it, they silently do not happen and you ship an un-grounded, un-vetted plan.
 
 **Ground once per area, to disk — never per task.** This is the single biggest cost lever in the loop. Observed:
@@ -213,15 +213,15 @@ Per wave, in order:
    implemented. Each writes `docs/roadmap/<feature>-ground-<area>.md` with NO `status: committed` front-matter —
    that key marks an executable plan, and a report carrying it would get offered to `implement` as one. Re-ground
    an area only when the tree has moved inside it since the report.
-2. **Plan** — dispatch consumed `specify` **for every task in the wave that has no plan file yet, in one
+2. **Plan** — dispatch consumed `specify` to `researcher` (`agentName: "researcher"`) **for every task in the wave that has no plan file yet, in one
    response** (on resume, tasks already planned in a half-finished wave are skipped, not re-planned) — the literal marker
    `SPECIFY CONSUMED MODE`, the task's decomposition text, its **owned file set**, the **path** to the grounding
    file (not its contents pasted through your context), and
-   `target: docs/roadmap/<feature>-taskNN-<slug>.md`. Planning is read-only and each child writes only its own
+   `target: docs/roadmap/<feature>-taskNN-<slug>.md`. `researcher` writes only the plan markdown file at its target path (markdown permissions only; cannot touch source code or git); planning is read-only and each child writes only its own
    unique target, so this fans out to the width of the graph — **not** capped at 4.
 3. **Vet** — one `reviewer` per plan file, in one response (max 3 rounds each). Tell it to **open the files the
    plan names** — a plan written from a grounding report that has since gone stale reads fluently and is wrong
-   everywhere, and only reading the tree catches that. Findings → re-dispatch consumed `specify` to **refine
+   everywhere, and only reading the tree catches that. Findings → re-dispatch consumed `specify` (`researcher`) to **refine
    that same target in place**; do not fix the plan yourself.
 4. **Commit the plan docs** — your commit, by pathspec (`docs: plan <feature> taskNN…`). Consumed `specify` is
    forbidden from committing, so if you skip this the plan is never recorded and the next session re-plans it.

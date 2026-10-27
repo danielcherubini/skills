@@ -30,7 +30,7 @@ The behavior described in the rest of this document, unchanged: read the input �
 
 Entered **only** when the invoking task text contains the exact marker `SPECIFY CONSUMED MODE`. Used by the
 `roadmap` skill, which runs `specify` once per task. Consumed mode is normally run **as a dispatched child**
-(`general`), which has **no `subagent` tool** — so consumed mode never dispatches anything itself; the caller
+(`researcher`, `agentName: "researcher"`), which has **no `subagent` tool** — so consumed mode never dispatches anything itself; the caller
 owns every sub-agent. In consumed mode:
 
 - Plan exactly **ONE task** (described by the task text), NOT a whole feature. The invocation also supplies a
@@ -68,7 +68,7 @@ stall looking for a tool you were never given:
 
 - **You have a `subagent` tool** (you are the main agent, running standalone `specify`) → **dispatch
   `researcher`** and write the plan from its report.
-- **You do not** (you were dispatched as a child, which is how `roadmap` runs consumed `specify`) → **read the
+- **You do not** (you were dispatched as a child, which is how `roadmap` runs consumed `specify` via `researcher`) → **read the
   grounding report the caller hands you.** A `roadmap` dispatch supplies a path like
   `docs/roadmap/<feature>-ground-<area>.md`; open it and plan from it. It already contains the file inventory,
   the verbatim signatures, and the test commands — that is why it exists.
@@ -100,8 +100,8 @@ Find and report, with file paths and line references:
 Sources: local codebase. Report findings with paths; flag anything you could NOT confirm.` })
 ```
 
-- **`researcher`, not `general`** — `general` is the *implementation* child; it writes code and commits.
-  Grounding is read-only and must not touch the tree. (When you are the consumed-mode child doing inline
+- **`researcher` for planning, `general` for implementation** — `general` is the *implementation* child; it writes code and commits.
+  Grounding and consumed planning are read-only to code and touch only markdown files; they run via `researcher`. (When you are the consumed-mode child doing inline
   grounding, you are already read-only for the duration — do not edit source while grounding.)
 - **Not the `reviewer`** — the reviewer runs *after* the plan exists (see *After Plan is Written*) and checks it
   against the tree. Grounding runs *before*, so the plan starts from facts instead of being corrected afterwards.

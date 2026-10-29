@@ -112,7 +112,7 @@ The [systematic-debugging skill](skills/systematic-debugging/) enforces a root-c
 |-------|---------|--------------|
 | [check-pr](skills/check-pr/) | "check the PR", "any review comments?" | Orchestrates PR inspection via subagents: review threads, reviewer decisions, CI rollup; presents fixes with ask, then watches checks to terminal status |
 | [check-issue](skills/check-issue/) | "check issue", "#1234", pasted issue URL, "what's open?" | Triage-only issue check — one `researcher` per issue in parallel, or a scope-gated backlog sweep. Read-only verdicts (open / stale / already fixed / duplicate), never a fix plan |
-| [gitflow-branching](skills/gitflow-branching/) | Starting new work requiring a branch | Trunk-based branching: `main → feature/* or bugfix/* → main`. Always from main, short-lived branches |
+| [trees-and-branches](skills/trees-and-branches/) | Starting work needing a branch, running work concurrently, switching branches with uncommitted work | Trunk-based branching (`main → feature/* → main`) plus git worktrees: one tree per concurrent task, worktree-for-the-interrupt, fan-in of task branches, `gh stack` |
 | [release](skills/release/) | "release", "bump version", "publish vX.Y.Z" | Multi-language semver bump with GitHub Actions verification. Detects all ecosystem files, checks CI, applies custom `AGENTS.md` steps, tags and pushes |
 | [daily-summary](skills/daily-summary/) | "daily summary", "standup", "what did I do today" | Scans git history across configured repos, synthesizes Slack-ready bulleted summary |
 

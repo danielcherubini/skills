@@ -64,7 +64,7 @@ Which skill the pipeline starts from — and whether it routes to `roadmap` or s
 
 | Skill | Trigger | What it does |
 |-------|---------|--------------|
-| [gitflow-branching](gitflow-branching/) | Starting new work requiring a branch | Trunk-based branching conventions: `main → feature/* or bugfix/* → main`. Always branch from main, keep branches short-lived. |
+| [trees-and-branches](trees-and-branches/) | Starting work that needs a branch, running tasks concurrently, switching branches with uncommitted work | Trunk-based branching conventions (`main → feature/* or bugfix/* → main`) plus git worktrees: one tree per concurrent task, worktree-for-the-interrupt instead of stash, fan-in of task branches, `gh stack` for PR chains. |
 | [release](release/) | "release", "bump version", "publish vX.Y.Z" | Multi-language semver bumping with GitHub Actions verification. Detects all ecosystem files, checks CI status, applies custom `AGENTS.md` steps, tags and pushes. |
 | [daily-summary](daily-summary/) | "daily summary", "standup", "what did I do today" | Scans git history across configured repo roots, synthesizes a Slack-ready bulleted summary to a tmp file for copy-paste. |
 

@@ -47,8 +47,9 @@ Then:
    step 1b / `specify`'s mirror step) — the plan comment is written once here, since consumed mode cannot.
    No spec doc / no `issue:` key (the `codebase-improvement` and `research` entries) → there is nothing to
    mirror to: say so once and continue. No tracker / no `gh` → same. This never gates the run.
-4. Create the feature branch: see the `gitflow-branching` skill, branch `feature/<topic>` off `main`. All N
-   tasks commit to this one branch. Never commit roadmap tasks onto `main`.
+4. Create the feature branch: see the `trees-and-branches` skill, branch `feature/<topic>` off `main`. Every task
+   lands on this one branch — serial tasks commit to it directly; wave tasks land on it via their own task branches,
+   fanned in by the wave protocol. Never commit roadmap tasks onto `main`.
 5. Build the **session list** with `manage_todo_list`: one entry per task, in wave order, named
    `W<wave> · <task id>` — `W1 · A1`. No slug: slugs are minted later by consumed `specify`, and a name you invent
    now will not match the plan filename `finish` deletes by. **Replace** any existing entries, never append; the
@@ -66,11 +67,14 @@ Then:
 Every artifact this skill writes is named from it (`<feature>-status.md`, `<feature>-taskNN-*.md`,
 `<feature>-follow-ups.md`) and `finish` deletes by the same name. Never derive it from an audit date, a report
 filename, or a spec title, or the status file and task plans will be orphaned on ship. When the entry is
-`discuss`, **`<topic>` must be the spec's basename** — if `gitflow-branching` would prepend a ticket id
+`discuss`, **`<topic>` must be the spec's basename** — if `trees-and-branches` would prepend a ticket id
 (`feature/PROJ-12-user-auth`), name the branch `feature/user-auth` instead, or rename the spec to match. The
 branch topic and the spec basename have to be the same string or `finish` deletes a family that does not
 exist and leaves the real one behind. When the entry is `codebase-improvement` or `research`, there is no
 spec file at `docs/roadmap/<feature>.md`; that is expected, and `finish` skips it.
+
+Task branches are named from the same topic — `feature/<topic>-taskNN` — so `git branch --list "feature/<topic>*"`
+finds every worktree's branch at once.
 
 ### N=1 degenerate
 
@@ -169,17 +173,20 @@ Task waves use the **same six parallelisation gates `specify` defines** (in `ski
 list at this altitude. **Re-verify the sets against the tree before dispatch** (Step 3: the tree outranks the
 text), because a task whose real edits land outside its declared set silently breaks the wave's disjointness.
 
-The wave protocol itself (children never commit; the orchestrator commits by pathspec; scoped in-wave tests;
-full suite once per wave; ≤4 implementers per wave; a BLOCKED sibling holds the wave) is **defined** in
+The wave protocol itself (one worktree and one branch per task; children commit on their own branch; the
+orchestrator fans the branches in; full suite once per wave on the integrated tree; ≤4 implementers per wave;
+a BLOCKED sibling holds the wave) is **defined** in
 `../implement/guides/guide-parallel-execution.md` — reference it, do not restate it.
 
-The ≤4 cap counts **implementers**, not planners. It exists because concurrent builds contend for one
-`target/` / `node_modules/.cache`; a planner runs no build and writes only its own unique plan path, so
+The ≤4 cap counts **implementers**, not planners. Each worktree pays its own dependency install and global
+caches are still shared, so past a few concurrent builds the speedup flattens; a planner runs no build and
+writes only its own unique plan path, so
 planning fans out to the width of the graph and is not capped at 4.
 
-The gate runs against one working tree, so child A's red gate would be caused by child B's half-finished
-edits, destroying the loop's only signal. Disjoint-ownership tasks are safe to run together (no shared content,
-no commit — the orchestrator commits). Read-only agents have no tree to corrupt at all — fan them out; that is
+Each implementer runs the gate in its **own** worktree, so its result measures only its own work — that is the
+point of the isolation. The wave's integrated gate is the one that can be red for reasons no single child could
+see: two tasks green alone, broken together. Disjoint-ownership tasks are safe to run together (no shared content,
+no merge conflict at fan-in). Read-only agents have no tree to corrupt at all — fan them out; that is
 where the wall-clock win is. Phase order: risk first, then size; cheapest win first inside a phase.
 
 ## Step 3 — Verify each task against the tree, every iteration
@@ -239,14 +246,16 @@ Per wave, in order:
    that same target in place**; do not fix the plan yourself.
 4. **Commit the plan docs** — your commit, by pathspec (`docs: plan <feature> taskNN…`). Consumed `specify` is
    forbidden from committing, so if you skip this the plan is never recorded and the next session re-plans it.
-5. **Implement** — dispatch per the wave protocol (children don't commit; you commit by pathspec; scoped tests
-   in-wave). Mark every task you dispatch in-progress in the session list first — **all of them at once.** A wave
+5. **Implement** — dispatch per the wave protocol (one worktree and one branch per task, children commit on their
+   own branch, you fan the branches in; ≤4 implementers). Mark every task you dispatch in-progress in the session
+   list first — **all of them at once.** A wave
    is genuinely parallel; serialising the marks to imitate `implement`'s one-at-a-time style hides the concurrency
    the list exists to show.
-6. **Gate** — full suite once per wave, mark `done`, update the file **and the session list** before the next wave.
+6. **Gate** — full suite once per wave, on the **integrated** tree after the fan-in, mark `done`, update the file **and the session list** before the next wave.
    The list's completion test is the row's test: complete an entry only when its Status row legitimately reads
-   `done` `<hash>` — committed **and** this wave's gate green. The wave protocol marks complete on the commit
-   alone; roadmap's `done` needs the gate, so nothing flips green before step 6 measures it. A red gate reopens
+   `done` `<hash>` — merged **and** this wave's gate green. The wave protocol already withholds completion until
+   the integrated suite is green, so roadmap's gate and the protocol's condition are the same measurement — nothing
+   flips green before step 6 runs it. A red gate reopens
    every entry in the wave; a BLOCKED sibling stays in-progress while its siblings complete. Never show the owner
    a completion the status file cannot record.
 
@@ -255,14 +264,22 @@ only its own plan file; an implementer writes only its owned set. Those do not c
 dispatch planning for the next wave's tasks in the same response. Wall clock approaches max(plan, implement)
 instead of plan + implement. Four bounds, all of them real:
 
-- **Only plan areas the running wave does not touch.** An implementer's edits land in its owned set; a planner
-  reading that set mid-edit records signatures that do not exist yet, and the report is poisoned for every
-  planner that reads it afterwards.
+- **Only plan areas the running wave does not touch.** A planner runs in the primary tree, which by construction
+  does **not** contain the running wave's work — that sits unmerged on task branches. A planner reading an area the
+  wave is changing records signatures that do not exist yet, and the report is poisoned for every
+  planner that reads it afterwards. Worktrees remove the *torn read* hazard (nothing is mid-write in the tree the
+  planner sees) and leave the *stale read* hazard fully intact — a clean tree that predates the wave reads as
+  authoritative, which is worse.
 - **Shared mutable files belong to the running wave** — lockfile, barrel, `mod.rs`/`__init__.py`, shared
-  fixtures, route registration — even if the planner only reads them.
+  fixtures, route registration — even if the planner only reads them. The planner's read is now consistent, but it
+  is consistent with the pre-wave state, so anything the wave adds to those files is invisible to it.
 - **Ground the next wave before implementing this one.** A researcher runs no build and is quick; a planner is
-  cheap once the report exists. The thing you must not overlap is a *researcher* reading a tree implementers are
-  actively mutating.
+  cheap once the report exists. The thing you must not overlap is a *researcher* grounding an area the wave is
+  changing — same stale-read mechanism, and a grounding report is read by every later planner for that area.
+- **Do not fan in while a planner or researcher is in flight in the primary tree.** The fan-in merges task
+  branches into it, so a reader that started before the merge and finishes after it has read both states and cannot
+  tell which. Let in-flight planners land first — the fan-in is a short serial moment at the end of a wave, and the
+  pipelining win comes from overlapping planning with *implementation*, not with the merge.
 - **A BLOCKED implementer does not cancel the plans already in flight**, but do not commit them until the wave
   resolves — a re-cut wave invalidates them, and committing plans for a wave that never ran leaves the status
   file describing work that will not happen.
@@ -305,7 +322,7 @@ content is folded and before `finish` deletes the family, so the owner sees the 
 | `file:line` citations | Dead or misleading within one branch |
 | Mark `done` because the steps ran | Criterion false while recorded complete |
 | Silently skip a finding you rejected | Reads as unfinished; gets redone |
-| Two implementers in one tree | Overwritten files; gates that mean nothing |
+| Two implementers dispatched into one tree | Each child must get its own worktree; sharing one reintroduces clobbered files and a suite result that measures a sibling |
 | Widen scope because the tree shows work undone | Unapproved changes shipped as diligence |
 | Pay any cost to satisfy a criterion exactly | A Proxy-and-freeze rewrite where a limit note fit |
 | Child stalls: "no subagent tool here" | Nothing ships; dispatch is the orchestrator's job |
@@ -313,7 +330,7 @@ content is folded and before `finish` deletes the family, so the owner sees the 
 | One task per finding / per design section | Same file lands in two tasks → every wave collapses to one member → a chain of serial waves. Partition by owned file set instead |
 | Four serial steps split into four tasks | Four `specify` dispatches and four implementers where one of each was enough. Merge a serial run into one task |
 | Handing each planner no grounding, or the report pasted through your context | Each planner re-reads the whole tree: observed 359.7k tokens / 88 tool calls / 281% of budget, compacting and re-reading. Ground once per area **to disk**; pass the planner the path |
-| Applying the ≤4 wave cap to planners | The cap is for build-cache contention. Planning is read-only — fan it out to the width of the graph |
+| Applying the ≤4 wave cap to planners | The cap is for build cost — per-worktree dependency installs and shared global caches. Planning is read-only — fan it out to the width of the graph |
 | Session list never built, or updated in a batch at the end | The list is the owner's only live view of a run that can span hours and waves. Unbuilt, the run looks stalled and gets interrupted mid-wave; batched, it lies about which tasks are finished |
 | Session list says complete, Status row cannot read `done` | Two artifacts disagreeing is the exact failure the truthfulness rules exist to prevent — the next iteration trusts the file and the owner trusts the list, and both are wrong about different tasks |
 

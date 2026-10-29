@@ -21,9 +21,12 @@ One paragraph: what "finished" means, and which source document the work comes f
 ## Operating mode
 The whole wave moves at once — planning fans out, it is not one task at a time.
 
-**On every resume, before dispatching anything:** run `git status --porcelain`. Uncommitted edits inside some
-task's Owns set mean the previous iteration died **mid-implementation** — that task is `implemented`, not
-`todo`, and its siblings may be half-written. Commit or set aside those edits first; never dispatch a new wave
+**On every resume, before dispatching anything:** run `git status --porcelain` **and `git worktree list`.** A wave
+child's edits land in its own worktree, so a clean primary tree proves nothing — an `*-taskNN` worktree left over
+from a dead iteration means that task died **mid-implementation**: check `git -C <worktree> status --porcelain` for
+each one. Such a task is `implemented`, not
+`todo`, and its siblings may be half-written. Commit or set aside those edits — in that worktree, on that task's
+branch; never dispatch a new wave
 on a dirty tree. Then re-derive every task's state from the table's Status tests (plan file? changelog?
 commit?) — the tree outranks whatever value is written, so correct the column before acting on it. Then rebuild
 the **session list** (`manage_todo_list`) from the corrected column — one entry per task row, `W<wave> · <task id>`,
@@ -50,11 +53,13 @@ Loop protocol, per WAVE, repeat until `status: done`:
    names; findings -> re-dispatch consumed specify to refine the SAME target.
 6. Commit the plan docs yourself, by pathspec — the child is forbidden from committing, so an uncommitted plan
    gets re-planned by the next session.
-7. Implement the wave per implement's wave protocol (children don't commit; you commit by pathspec; scoped
-   tests in-wave; <=4 implementers). In the SAME response, dispatch planning for the NEXT wave's tasks —
+7. Implement the wave per implement's wave protocol (one worktree + one branch per task; children commit on their
+   own branch; you fan the branches in; <=4 implementers). In the SAME response, dispatch planning for the NEXT wave's tasks —
    only for areas this wave's implementers do not touch. That overlap is where the wall-clock is won.
-8. Run the gate (full suite once per wave). Green -> commit by pathspec -> mark `done` here -> one Changelog
-   line. Red -> re-dispatch; never fix by hand in the orchestrator.
+8. Fan in the task branches in plan order, then run the gate (full suite once per wave, on the integrated tree).
+   Green -> mark `done` here -> one Changelog
+   line. Red -> re-dispatch; never fix by hand in the orchestrator. Remove the task worktrees, then delete the
+   task branches (git refuses the reverse order).
 9. Update THIS FILE **and the session list** before starting the next wave. Then loop.
 
 Steps 3-8 are roadmap's Step 4, same order, same meaning.
@@ -98,8 +103,8 @@ since — `git log --oneline <commit>..HEAD -- <area paths>`, not a feeling.
 | `todo` | no plan file at the Plan path |
 | `planned` | plan file exists |
 | `vetted` | plan file exists **and** a Changelog line records the vet round for it |
-| `implemented` | the task's edits exist in the tree but are not committed |
-| `done` `<hash>` | committed, gate green |
+| `implemented` | the task's edits exist uncommitted in its worktree, **or** are committed on its task branch but not yet merged into the feature branch |
+| `done` `<hash>` | gate green **and** the task's branch is merged into the feature branch — `<hash>` is the **child's own commit**, which always exists (the first fan-in fast-forwards and creates no merge commit). Verify with `git merge-base --is-ancestor <hash> HEAD` |
 
 Write the value only when its test passes — `done` still means the acceptance criterion measured true, not that
 steps ran. These are task states, not phase prose: never add a sentence summarising a wave's state, derive it

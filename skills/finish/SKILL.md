@@ -31,6 +31,8 @@ Main Agent (Finish Orchestrator)
   │
   ├── 5. Sync local main (`git checkout main && git pull origin main`)
   │
+  ├── 5b. Remove leftover task worktrees from any abandoned parallel wave
+  │
   └── 6. Clean up roadmap docs & report summary
 ```
 
@@ -52,10 +54,11 @@ Main Agent (Finish Orchestrator)
 
 ### Step 0: Determine Merge Mode
 
-Check whether an open PR exists for the current branch:
+Check whether an open PR exists for the current branch. **Capture the branch tip here** — step 4b needs it, and by then the branch is gone:
 
 ```bash
 CURRENT_BRANCH=$(git branch --show-current)
+FEATURE_TIP=$(git rev-parse HEAD)     # before any merge; 4b's only reliable reference point
 gh pr list --head "$CURRENT_BRANCH" --state open --json number,title,url --jq '.[0]'
 ```
 
@@ -145,6 +148,34 @@ git checkout main
 git pull origin main
 ```
 
+### 4b. Remove Leftover Task Worktrees
+
+A parallel wave creates one worktree and branch per task (`feature/<topic>-taskNN`, per `trees-and-branches`). A successful wave removes its own, so anything still present is debris from an abandoned or failed wave — and it survives `gh pr merge --delete-branch`, which only touches the PR's branch.
+
+```bash
+git worktree list                     # anything besides the primary checkout?
+```
+
+For each `*-taskNN` branch belonging to this feature, ask whether it shipped:
+
+```bash
+git merge-base --is-ancestor <task-branch> "$FEATURE_TIP"   # 0 = shipped, 1 = unmerged work
+git log --oneline "$FEATURE_TIP..<task-branch>"            # what would be lost
+git -C <worktree> status --porcelain                       # uncommitted edits
+```
+
+Test against `$FEATURE_TIP` (step 0), **never against `main`**: this merge is a squash, so no task branch is an ancestor of post-merge `main`, and every branch — including the ones that shipped — would read as unmerged. The captured tip is also the only reference left once `--delete-branch` has removed the feature branch.
+
+**Unmerged commits or uncommitted edits are work nobody shipped — report them to the user before removing anything.** Only after confirming nothing is lost:
+
+```bash
+git worktree remove <worktree>        # refuses while dirty; never --force past that
+git branch -D feature/<topic>-taskNN  # after the worktree is gone
+git worktree prune                    # if any were rm -rf'd earlier
+```
+
+No task worktrees → say so in one line and continue. This never gates the merge.
+
 ### 5. Clean Up Roadmap Doc & Final Report
 
 Delete the whole feature roadmap family (plan/spec, status, task plans, follow-ups — history lives in git).
@@ -213,7 +244,8 @@ When merging directly without a PR:
    git push origin --delete "$CURRENT_BRANCH"
    git branch -D "$CURRENT_BRANCH"
    ```
-5. **Clean up roadmap doc** (Step 5 above).
+5. **Remove leftover task worktrees** — same as step 4b above; a wave's `*-taskNN` worktrees survive this path too.
+6. **Clean up roadmap doc** (Step 5 above).
 
 ---
 
@@ -222,6 +254,7 @@ When merging directly without a PR:
 Present the final confirmation to the user:
 - PR merged (with link) or direct branch merged
 - Local `main` branch synced with origin
+- Task worktrees removed (or "none remaining")
 - Remote feature branch deleted
 - Roadmap doc cleaned up
 - Any durable architecture notes documented

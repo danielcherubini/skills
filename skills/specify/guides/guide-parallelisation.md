@@ -4,12 +4,12 @@ How to decide whether a plan's tasks can run concurrently, and how to write that
 
 ## Why this is not obvious
 
-Every subagent shares ONE working tree and ONE `.git/index`. There is no per-child worktree. Two consequences that do not announce themselves:
+Every wave child gets **its own worktree and its own branch** (see the `trees-and-branches` skill), so siblings cannot corrupt each other's checkout or index. What they cannot do is see each other. Two consequences that do not announce themselves:
 
-- **Commits are index-wide.** `git commit` commits whatever is staged. Child A stages `a.py`, child B stages `b.py`, A commits → A's commit silently contains B's half-finished work. Concurrent `git add` also deadlocks on `.git/index.lock`.
-- **Verification measures everyone.** A child's RED/GREEN check runs against a tree a sibling is mid-editing. It cannot distinguish "my test fails because my code is missing" from "because my sibling is halfway through `user.py`." Per-task TDD — the whole point of dispatching a child per task — stops meaning anything.
+- **A child verifies against the base plus its own work — nothing else.** Its full-suite run is a genuine measurement of *its* task, which is why isolation is worth the setup. But a sibling's work does not exist in its tree, so nothing in that child's report can tell you the two tasks work *together*. That is what the post-fan-in suite is for, and it is the one check that still catches the integration failure.
+- **A collision becomes a merge conflict, not a corrupt commit.** Two children touching one file each get their own clean commit now — but they conflict at fan-in, and the orchestrator resolves it by re-dispatching one of them. Wasted work, not silent corruption. Still a reason to split the wave.
 
-So "these two tasks are logically independent" is not the question. The question is whether they can coexist in one tree at one moment.
+So "these two tasks are logically independent" is not the question. The question is whether each can be completed and proven from the base alone, and whether they merge cleanly afterwards.
 
 ## The six gates
 
@@ -25,29 +25,31 @@ The near-misses that people miss: one shared test file, one shared fixture, one 
 
 Task A cannot `import` / `use` / link against a symbol Task B is creating in the same wave. If A needs B's new type, trait, or exported function, A belongs in a later wave.
 
-This one is invisible to gate 1: the two tasks touch different files and still cannot coexist, because A's child starts with no `B.py` in the tree, fails, and either invents an interface or stubs it. The invented interface is the expensive outcome — it passes A's own scoped tests and breaks at integration, where nothing can attribute it.
+This one is invisible to gate 1: the two tasks touch different files and still cannot share a wave, because A's worktree contains no `B.py` — B's work is on a sibling's branch, not in A's tree. A fails, and either invents an interface or stubs it. The invented interface is the expensive outcome — it passes A's own suite and breaks at integration, where nothing can attribute it.
 
 ### 3. No shared mutable artifact
 
 Anything wave members write, even indirectly. Lockfiles, migrations, generated code, shared fixtures, seed data, route/middleware registration files, `mod.rs` / `__init__.py` / barrel files, DB schema, config.
 
-**Check the commands, not just the file lists.** A task whose verification runs through a wrapper — `uv run`, `npm test`, `cargo test`, `poetry run` — can re-resolve a lockfile, write snapshots, or touch `conftest.py` without any of that appearing in its `Files:` list. Two tasks each running `pytest` with coverage or snapshot plugins can both be writing the same cache.
+**Check the commands, not just the file lists.** A task whose verification runs through a wrapper — `uv run`, `npm test`, `cargo test`, `poetry run` — can re-resolve a lockfile, write snapshots, or touch `conftest.py` without any of that appearing in its `Files:` list. Each child writes its own copy in its own worktree, so nothing corrupts — but two children who both re-resolved a lockfile or regenerated snapshots produce divergent versions of the same file, and that is a guaranteed conflict at fan-in.
 
 A "register the components" or "wire up the module" task is gate 3 by definition — its entire job is editing the one file every other task would also have to edit.
 
-### 4. Scoped verification is enough
+### 4. Provable from the base alone
 
-The task's acceptance criteria are provable by its **own** test file alone. If proving them requires a full-suite run, the task is serial — a full-suite run inside a wave measures every sibling at once.
+The task's acceptance criteria are provable in a checkout that contains the base **plus only this task's work**. A child now runs the full suite in its own worktree, so a whole-suite run is no longer disqualifying — it is the expected verification.
 
-Watch for acceptance criteria that are secretly integration assertions: "the endpoint returns 401", "the migration applies cleanly", "the CLI command works". Those need the whole system, and the whole system is what the wave is mid-way through changing.
+What still disqualifies: criteria that are secretly **integration** assertions — "the endpoint returns 401", "the migration applies cleanly", "the CLI command works" — where proving them needs a *sibling's* work present. In the child's tree that work does not exist, so the child either stubs the interface (the expensive outcome: it passes alone and breaks at fan-in, where nothing can attribute it) or reports BLOCKED for a dependency that was never missing. Such a task belongs in a later wave, or in the fan-in gate.
 
 ### 5. No tree-wide mutation
 
-A task that runs a whole-tree formatter, regenerates a lockfile, re-runs codegen, or reformats `tests/` touches everything at once. Serial.
+A task that runs a whole-tree formatter, regenerates a lockfile, re-runs codegen, or reformats `tests/` touches everything at once.
+
+This still serialises, and the reason changed rather than disappeared: each child's tree-wide rewrite is now harmless *in isolation* — it lands in its own worktree — but two siblings who both reformatted everything collide across every file at fan-in, and a lockfile two children each regenerated conflicts on every line. The blast radius moved from the shared tree to the merge.
 
 ### 6. Wave size ≤ 4
 
-Beyond four concurrent children, simultaneous builds contend for one `target/` / `node_modules/.cache` / `.mypy_cache`, and the wall-clock win flattens out. Split into consecutive waves instead.
+Beyond four concurrent children, each new worktree pays its own dependency install (`node_modules`, `target/`) and the global caches — `~/.cache/go-build`, the module cache, `.mypy_cache` — are still shared across all of them, so the wall-clock win flattens out. Split into consecutive waves instead. Measure before widening this.
 
 ## Worked examples
 

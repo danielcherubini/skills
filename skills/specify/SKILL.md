@@ -131,11 +131,11 @@ Test each candidate wave against ALL SIX gates. A task joins a wave only if it c
 1. **Disjoint files** — `Files:` lists (Create + Modify + **Test**) share ZERO paths, pairwise.
 2. **No build-graph dependency** — A cannot `import`/`use` a symbol B creates in the same wave.
 3. **No shared mutable artifact** — lockfiles, migrations, generated code, shared fixtures, `mod.rs`/`__init__.py`/barrel files, route or middleware registration, config. **Check the commands, not just the file lists**: a task verified through `uv run` / `npm test` / `cargo test` can rewrite a lockfile or write snapshots without naming them in `Files:`.
-4. **Scoped verification suffices** — acceptance criteria provable by the task's own test file alone. Needs a full-suite run → serial.
-5. **No tree-wide mutation** — whole-tree formatters, lockfile regeneration, codegen.
-6. **Wave size ≤ 4** — beyond four, simultaneous builds contend for one `target/` / `node_modules/.cache` and the win flattens.
+4. **Provable from the base alone** — acceptance criteria provable in a checkout holding the base plus only this task's work. Each child runs the full suite in its own worktree, so a suite run is no longer disqualifying; needing a *sibling's* work present to pass is.
+5. **No tree-wide mutation** — whole-tree formatters, lockfile regeneration, codegen. Harmless inside one worktree, but two children who both rewrote everything collide across every file at fan-in.
+6. **Wave size ≤ 4** — beyond four, each new worktree pays its own dependency install and the global caches (`~/.cache/go-build`, module cache) are still shared, so the win flattens.
 
-**Why this is not just "are they independent?":** every child shares ONE working tree and ONE `.git/index` — there is no per-child worktree. Getting gates 1–3 wrong does not crash. It silently blends two tasks' half-finished edits into one commit, and makes a child's RED/GREEN check meaningless because it is measuring a sibling's in-progress code.
+**Why this is not just "are they independent?":** every wave child works in **its own worktree on its own branch** (see the `trees-and-branches` skill), so siblings cannot corrupt each other's tree or index — but they also cannot *see* each other. A child's suite result proves its own task and says nothing about the combination, and two children touching one file each produce a clean commit that collides at fan-in. Getting gates 1–3 wrong no longer crashes; it wastes a whole child's work on a conflict, and gates 2 and 4 let a child invent an interface for work that exists only in a sibling's branch — green alone, broken at integration, unattributable.
 
 Consult **[Parallelisation Guide](guides/guide-parallelisation.md)** for worked wave/serial examples, the near-miss checklist, and how to word each `**Parallel:**` line.
 
@@ -218,10 +218,10 @@ Each task must be independently commitable. The agent executing it has no contex
 
 The invariants the `**Parallel:**` lines encode — `implement` executes these, so a plan claiming PARALLEL must hold all four:
 
-- **Wave children do not commit.** They edit and report their file list; the orchestrator commits each task separately by explicit pathspec (`git commit -m "<msg>" -- <files>`), which a sibling's staged work cannot corrupt. Serial tasks commit as usual.
-- **In-wave verification is scoped** — own test file, own files formatted. Never a full suite or tree-wide formatter: siblings are mid-edit in the same tree.
-- **The full suite runs once per wave, afterwards, serially** — so acceptance criteria are provable by scoped-test-in-wave + suite-after-wave together.
-- **A wave is a barrier** — dispatch all of wave N together, wait for all, then wave N+1. A BLOCKED sibling holds the following waves.
+- **Each wave child gets its own worktree and branch** (`feature/<topic>-taskN`, all from one recorded base) and **commits there** with the plan's message. It must never touch the feature branch or `main`. Serial tasks work in the primary checkout and commit as usual.
+- **In-wave verification is complete but local** — the child runs the full suite in its own worktree, where that result measures only its own work. It cannot observe a sibling, so it cannot certify the combination.
+- **The orchestrator fans the branches in, in plan order, then runs the full suite on the integrated tree** — so acceptance criteria are provable by per-child suite + integrated suite together. Each task stays its own commit, which is what makes a post-wave failure bisectable.
+- **A wave is a barrier** — dispatch all of wave N together, wait for all, fan in, then wave N+1. A BLOCKED sibling holds the following waves; its partial work stays isolated in its own worktree.
 
 Full protocol, failure handling, and the child dispatch wording live in the **implement** skill's Parallel Execution Guide — that is `implement`'s to read at execution time, not yours.
 
@@ -285,6 +285,6 @@ Fix issues (max 3 rounds).
 | Creating a plan index or done/ folder | No index, no graveyard — roadmap docs are self-contained; history lives in git |
 | Omitting the `## Parallelisation` verdict | `implement` reads a missing verdict as SERIAL. Declare SERIAL with a reason — a missed parallel opportunity is invisible; a wrong one is not |
 | Declaring a wave because the tasks are *logically* independent | Independence of features is not disjointness of paths. `routes.py`, a shared fixture, or a `mod.rs` collide regardless of how separate the features feel |
-| Letting a wave child run the full test suite | The result attributes a sibling's breakage to it. Scoped test in-wave, full suite after the wave |
+| Letting a wave child certify the combination | Its own worktree proves its own task and cannot see a sibling's. The integrated suite after fan-in is the only measurement of the wave together — and prove it ran tests: a package with no discovered test files still exits 0 |
 
 More parallelisation mistakes and worked examples: **[Parallelisation Guide](guides/guide-parallelisation.md)**.

@@ -173,8 +173,9 @@ Task waves use the **same six parallelisation gates `specify` defines** (in `ski
 list at this altitude. **Re-verify the sets against the tree before dispatch** (Step 3: the tree outranks the
 text), because a task whose real edits land outside its declared set silently breaks the wave's disjointness.
 
-The wave protocol itself (one worktree and one branch per task; children commit on their own branch; the
-orchestrator fans the branches in; full suite once per wave on the integrated tree; ≤4 implementers per wave;
+The wave protocol itself (a child gets its own worktree and branch when anything else touches the tree while it
+runs — always true at wave width ≥2; children commit on their own branch; the
+orchestrator integrates their work; full suite once per wave on the integrated tree; ≤4 implementers per wave;
 a BLOCKED sibling holds the wave) is **defined** in
 `../implement/guides/guide-parallel-execution.md` — reference it, do not restate it.
 
@@ -246,8 +247,13 @@ Per wave, in order:
    that same target in place**; do not fix the plan yourself.
 4. **Commit the plan docs** — your commit, by pathspec (`docs: plan <feature> taskNN…`). Consumed `specify` is
    forbidden from committing, so if you skip this the plan is never recorded and the next session re-plans it.
-5. **Implement** — dispatch per the wave protocol (one worktree and one branch per task, children commit on their
-   own branch, you fan the branches in; ≤4 implementers). Mark every task you dispatch in-progress in the session
+5. **Implement** — dispatch per the wave protocol (children commit on their own branch; you integrate their work;
+   ≤4 implementers). **Width ≥2 forces one worktree and one branch per task. Width 1 is your call** — isolate when
+   you intend to pipeline the next wave's planners over this implementer (the tree must not be read while it is
+   edited), skip it when there is nothing to pipeline and the per-worktree dependency install would cost more than
+   the overlap returns. State which you chose and the cost in the same line as the wave breakdown, and record it in
+   the status file beside the wave so the next iteration does not silently flip. Mark every task you dispatch
+   in-progress in the session
    list first — **all of them at once.** A wave
    is genuinely parallel; serialising the marks to imitate `implement`'s one-at-a-time style hides the concurrency
    the list exists to show.
@@ -280,6 +286,9 @@ instead of plan + implement. Four bounds, all of them real:
   branches into it, so a reader that started before the merge and finishes after it has read both states and cannot
   tell which. Let in-flight planners land first — the fan-in is a short serial moment at the end of a wave, and the
   pipelining win comes from overlapping planning with *implementation*, not with the merge.
+- **Pipelining requires the implementer to be isolated.** A width-1 child you left in the primary tree is editing
+  the very tree those planners read, mid-write. Either isolate that child or drop the overlap for that wave — you
+  cannot have both, and this is the cost side of the width-1 decision above.
 - **A BLOCKED implementer does not cancel the plans already in flight**, but do not commit them until the wave
   resolves — a re-cut wave invalidates them, and committing plans for a wave that never ran leaves the status
   file describing work that will not happen.

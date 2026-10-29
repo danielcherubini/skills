@@ -53,10 +53,13 @@ Loop protocol, per WAVE, repeat until `status: done`:
    names; findings -> re-dispatch consumed specify to refine the SAME target.
 6. Commit the plan docs yourself, by pathspec — the child is forbidden from committing, so an uncommitted plan
    gets re-planned by the next session.
-7. Implement the wave per implement's wave protocol (one worktree + one branch per task; children commit on their
-   own branch; you fan the branches in; <=4 implementers). In the SAME response, dispatch planning for the NEXT wave's tasks —
+7. Implement the wave per implement's wave protocol (children commit on their own branch; you integrate their
+   work; <=4 implementers). Width >=2 forces one worktree + one branch per task; **width 1 is a decision** —
+   isolate if you will pipeline planners over this child (they cannot read a tree it is editing), otherwise run it
+   in the primary tree and skip the overlap. Record the choice beside the wave. In the SAME response, dispatch
+   planning for the NEXT wave's tasks —
    only for areas this wave's implementers do not touch. That overlap is where the wall-clock is won.
-8. Fan in the task branches in plan order, then run the gate (full suite once per wave, on the integrated tree).
+8. Integrate the task branches in plan order, then run the gate (full suite once per wave, on the integrated tree).
    Green -> mark `done` here -> one Changelog
    line. Red -> re-dispatch; never fix by hand in the orchestrator. Remove the task worktrees, then delete the
    task branches (git refuses the reverse order).

@@ -9,11 +9,34 @@ This protocol governs waves at **two grains**:
 - **(a) Intra-plan** — sub-tasks within one committed plan. `specify` emits the `**Parallel:**` lines, and each task's `Files:` list is the disjointness evidence.
 - **(b) Inter-task** — roadmap tasks within a run. `roadmap` emits the wave grouping and judges disjointness from each task's **owned file set** (its status-file `Owns` column), re-verified against the tree — the ownership set is the `Files:` list at task grain.
 
-Both use the **identical invariants**: one worktree and one branch per wave task, children commit on their own branch, the orchestrator fans the branches in and runs the full suite on the integrated result, ≤4 **implementers** per wave (read-only dispatches are not capped — see check 4), a BLOCKED sibling holds the wave. Only the *evidence* for gate 1 (disjoint files) differs by grain. **Roadmap applies this protocol directly and does NOT load the `implement` skill per task.**
+Both use the **identical invariants**: children commit on their own branch, the orchestrator integrates the work and runs the full suite on the combined result, ≤4 **implementers** per wave (read-only dispatches are not capped — see check 4), a BLOCKED sibling holds the wave. Only the *evidence* for gate 1 (disjoint files) differs by grain. **Roadmap applies this protocol directly and does NOT load the `implement` skill per task.**
+
+## When a child gets its own worktree
+
+**A child needs a worktree when something else touches the primary tree while it runs.** Not "when the wave is wide" — width is how that condition usually arises, not the condition itself.
+
+| While this child runs… | Worktree |
+|---|---|
+| another implementer in the same wave | yes — siblings |
+| a planner or researcher reads the tree (roadmap's pipelining) | yes — a reader must not see a tree mid-edit |
+| nothing else | no — work in the primary checkout |
+
+Width-1 is the only case the table forces a judgement on, and only where readers overlap implementers. **Under `implement`, nothing reads the tree during a wave, so width 1 always resolves to "no".** Under `roadmap`, which pipelines next-wave planning over the running wave, width 1 has a real cost on both sides: isolation lets that pipelining happen, which is where the wall clock is won; but each worktree pays its own dependency install (`node_modules`, `target/`), and on a chain of width-1 waves you pay it every wave. Where the caches are global (Go's `GOCACHE`) isolation is nearly free and you should take it; where install dominates, a cold install per wave can cost more than the overlap returns.
+
+**Where a decision exists (roadmap, width 1), make it and say so in the mode line, with the cost you accepted** — the same discipline as announcing the wave breakdown:
+
+```
+Isolating Wave 2 (width 1) — pipelining Wave 3's planners over this implementer; Go's build cache is global, so the worktree costs no extra install.
+Running Wave 2 (width 1) in the primary tree — dependency install is per-worktree and dominates here, and Wave 3 has nothing to plan ahead, so there is no overlap worth that install.
+```
+
+Record the choice in the status file next to the wave (roadmap keeps one) so the next iteration does not silently pick the other way.
+
+Waves of width ≥2 need no decision: siblings force isolation.
 
 ## Why isolation, and what it does not buy you
 
-Each wave child gets its own worktree and branch, so siblings share an object store and nothing else: separate trees, separate indexes, separate build artifacts. A child can therefore commit normally and run the project's **full** suite — its own tree makes that a real measurement of its work rather than a reading of everyone's.
+Each isolated wave child gets its own worktree and branch, so siblings share an object store and nothing else: separate trees, separate indexes, separate build artifacts. A child can therefore commit normally and run the project's **full** suite — its own tree makes that a real measurement of its work rather than a reading of everyone's.
 
 What isolation does **not** buy you is a correct integration. Two children can define the same symbol in different files, or both need a registration point neither was assigned. Each is green alone and the combination is broken. **Disjoint files make the merge clean; only the post-fan-in suite says whether the build works.** That single check remains the load-bearing one, exactly as it was before.
 
@@ -60,6 +83,8 @@ Executing in 2 waves — Wave 1: Tasks 1, 2 (verified disjoint); Wave 2: Task 3 
 
 ## Setting up the wave
 
+For every child that the table above says to isolate:
+
 ```bash
 BASE=$(git rev-parse HEAD)                                  # every task branches from here
 for n in 1 2 3; do
@@ -68,6 +93,8 @@ done
 ```
 
 Siblings, never nested inside the repo. Record `$BASE` — it is both what makes the fan-in a clean replay and your bisect boundary.
+
+A child you chose **not** to isolate works in the primary checkout on the feature branch and commits there directly. It has no branch of its own, so it has no fan-in merge — but `$BASE` still needs recording before it starts, and the post-wave suite still runs: that is the only measurement of the wave either way.
 
 ## The dispatch text for a wave child
 
@@ -87,23 +114,24 @@ PARALLEL WAVE — you have your own worktree:
 Report DONE with your commit SHA and file list.
 ```
 
-Unlike a serial child, a wave child is **not** told to skip committing or to scope its tests — isolation makes both correct.
+Unlike a serial child, a wave child is **not** told to skip committing or to scope its tests — isolation makes both correct. A child you did not isolate uses the plain serial dispatch text with no WORKTREE/BRANCH block; it commits on the feature branch like any serial task.
 
 ## Running the wave
 
 1. **One response, one `subagent` call per task.** Calls emitted together run concurrently — N tasks take roughly the wall-clock of one. Emitting them in separate responses is serial dispatch wearing a wave costume.
 2. **Wait for all of them.** The wave is a barrier. Do not start wave N+1 while any wave-N task is outstanding.
-3. **Fan in, in plan order**, one merge per task so every task stays its own commit:
+3. **Fan in, in plan order**, one merge per isolated task so every task stays its own commit:
    ```bash
    git merge --no-edit feature/<topic>-task1
    git merge-base --is-ancestor feature/<topic>-task1 HEAD   # landed
    git diff --stat HEAD^1 HEAD                               # must show ONLY task 1's files
    ```
    Use `git diff HEAD^1 HEAD`, **not** `git show --stat HEAD`: on a merge commit `git show` prints no file list at all, so the check silently passes having verified nothing. And expect the *first* merge to fast-forward — the feature branch has no commits of its own yet, so there is no merge commit to point at. That is why "landed" is tested with `--is-ancestor` against the child's branch rather than by naming a merge commit.
+   A child you did not isolate has already committed on the feature branch — nothing to merge; confirm its SHA is on the branch with the same `--is-ancestor` test.
    A conflicting merge is the collision the pairwise check missed. Resolve it by re-dispatching one task against the other's merged result — not by hand-editing both, which is where a third bug comes from.
-4. **Run the full suite on the integrated tree.** This is the integration check no isolated child can provide, and the *only* measurement describing what you just merged. **Prove it executed tests — do not trust the exit code.** A package where no test files were discovered still exits 0 (`go test ./...` prints `?   pkg   [no test files]`), and a *non-verbose* green run prints no `--- PASS` lines at all, so counting passes requires `-v`. Run verbosely and require a non-zero pass count: `go test -v ./...` → count `--- PASS`.
-5. **Mark each task complete individually**, and only once its merge exists and the integrated suite is green. A returned-but-unmerged task is not done.
-6. **Clean up before the next wave**: `git worktree remove` each task worktree, then delete the task branches — git refuses the reverse order.
+4. **Run the full suite on the integrated tree.** This is the integration check no isolated child can provide, and the *only* measurement describing what you just merged. **Prove it executed tests — do not trust the exit code.** A package where no test files were discovered still exits 0 (`go test ./...` prints `?   pkg   [no test files]`), and a *non-verbose* green run prints no `--- PASS` lines at all, so counting passes requires `-v`. Run verbosely and require a non-zero pass count: `go test -v ./...` → count `--- PASS`. This step is not optional even for a single non-isolated child that already ran the suite itself — its result described a tree you have since changed.
+5. **Mark each task complete individually**, and only once its work is on the feature branch and the integrated suite is green. A returned-but-unintegrated task is not done.
+6. **Clean up before the next wave**: `git worktree remove` each task worktree, then delete the task branches — git refuses the reverse order. Nothing to remove for a child that ran in the primary checkout.
 
 ## When part of the wave fails
 

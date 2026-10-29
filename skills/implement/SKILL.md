@@ -165,17 +165,17 @@ After the `subagent()` call returns, confirm the subagent actually performed the
 - **NEEDS_CONTEXT:** Provide missing info, re-dispatch (task stays in-progress)
 - **BLOCKED:** Assess blocker, provide help or escalate to user (task stays in-progress until resolved)
 
-**Important:** Default to dispatching tasks **sequentially** — one response, one task, wait. Run them concurrently ONLY when *Wave Planning* has verified a wave for them. The hazard is not the dispatch mechanism but the file sets: two children editing one file produce one commit that is neither task's work. Each wave child gets its own worktree and branch, so a collision can no longer corrupt an index — it becomes a merge conflict at fan-in, which is recoverable but still wasted work. If you have not explicitly verified disjoint file sets, you are running serially.
+**Important:** Default to dispatching tasks **sequentially** — one response, one task, wait. Run them concurrently ONLY when *Wave Planning* has verified a wave for them. The hazard is not the dispatch mechanism but the file sets: two children editing one file produce one commit that is neither task's work. Each isolated wave child gets its own worktree and branch, so a collision can no longer corrupt an index — it becomes a merge conflict at fan-in, which is recoverable but still wasted work. If you have not explicitly verified disjoint file sets, you are running serially.
 
 > 🔁 **If you catch yourself doing work inline instead of dispatching — stop, reset, and dispatch the subagent.** This is the #1 failure mode of this skill; do not let it happen.
 
 ### Running a wave
 
-Each task in a wave gets **its own worktree on its own branch**, per the `trees-and-branches` skill. Siblings then share an object store and nothing else — separate trees, separate indexes, separate build artifacts. Read its *Fan-in* section before your first wave.
+Each task in a wave of **width ≥2** gets **its own worktree on its own branch**, per the `trees-and-branches` skill. Siblings then share an object store and nothing else — separate trees, separate indexes, separate build artifacts. Read its *Fan-in* section before your first wave. A wave that comes out **width 1 is just a serial task** — nothing else touches the tree while it runs, so use the serial path and skip the worktree, the branch, and the merge. The guide's *When a child gets its own worktree* has the general rule for when something else is reading the tree (roadmap pipelines planners; you do not).
 
 **One response, one `subagent` call per task in the wave.** Parallel tool calls from a single response execute concurrently — N tasks take about the wall-clock of one, not N. Emitting them in separate responses is serial dispatch wearing a wave costume.
 
-**1. Create one worktree per task, all from the same base**, before dispatching anything:
+**1. Create one worktree per task, all from the same base**, before dispatching anything (waves of width ≥2; a width-1 wave skips to the serial path):
 
 ```bash
 BASE=$(git rev-parse HEAD)                                  # every task branches from here

@@ -218,7 +218,7 @@ Each task must be independently commitable. The agent executing it has no contex
 
 The invariants the `**Parallel:**` lines encode — `implement` executes these, so a plan claiming PARALLEL must hold all four:
 
-- **Each wave child gets its own worktree and branch** (`feature/<topic>-taskN`, all from one recorded base) and **commits there** with the plan's message. It must never touch the feature branch or `main`. Serial tasks work in the primary checkout and commit as usual.
+- **Each wave child gets its own worktree and branch** (`feature/<topic>-taskN`, all from one recorded base) and **commits there** with the plan's message. It must never touch the feature branch or `main`. A wave that ends up width 1 runs as a plain serial task, and serial tasks work in the primary checkout and commit as usual.
 - **In-wave verification is complete but local** — the child runs the full suite in its own worktree, where that result measures only its own work. It cannot observe a sibling, so it cannot certify the combination.
 - **The orchestrator fans the branches in, in plan order, then runs the full suite on the integrated tree** — so acceptance criteria are provable by per-child suite + integrated suite together. Each task stays its own commit, which is what makes a post-wave failure bisectable.
 - **A wave is a barrier** — dispatch all of wave N together, wait for all, fan in, then wave N+1. A BLOCKED sibling holds the following waves; its partial work stays isolated in its own worktree.

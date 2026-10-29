@@ -17,7 +17,9 @@ Roadmap runs first and **nests** `specify` once per task. The `entry` is whichev
 approved block: `discuss`, `research`, or `codebase-improvement`.
 
 **The status file is the only memory, and the tree outranks the plan.** A future iteration reading a stale
-status file will confidently redo finished work.
+status file will confidently redo finished work. The one exception is the **session list** — the `manage_todo_list`
+entries the user watches live. It is DERIVED from the status file's task rows, never the reverse, and it is never
+written into the file.
 
 Use for: many findings approved at once; work outliving one context window; being told to proceed without
 asking. Not a single task (just `specify` → `implement`) and not unapproved scope (`discuss`).
@@ -47,6 +49,18 @@ Then:
    mirror to: say so once and continue. No tracker / no `gh` → same. This never gates the run.
 4. Create the feature branch: see the `gitflow-branching` skill, branch `feature/<topic>` off `main`. All N
    tasks commit to this one branch. Never commit roadmap tasks onto `main`.
+5. Build the **session list** with `manage_todo_list`: one entry per task, in wave order, named
+   `W<wave> · <task id>` — `W1 · A1`. No slug: slugs are minted later by consumed `specify`, and a name you invent
+   now will not match the plan filename `finish` deletes by. **Replace** any existing entries, never append; the
+   entry skills clear the list before routing here, and the list is session-scoped, so it may hold a stale
+   predecessor.
+
+   > 🔒 **Gate: no `subagent` dispatch of any kind — grounding `researcher` included — until the list holds one
+   > row per task.** Not one row per wave, and not a single "drive the roadmap run" row: the list's only job is
+   > to let the owner watch N parallel tasks move, and a wave-grain list cannot show that.
+
+   **N=1 skips this** — that branch hands to standalone `specify`, which builds its own list; building one here
+   leaves two.
 
 **`<feature>` is defined once, here: it IS the branch topic — `feature/<topic>` → `<feature> = <topic>`.**
 Every artifact this skill writes is named from it (`<feature>-status.md`, `<feature>-taskNN-*.md`,
@@ -226,8 +240,15 @@ Per wave, in order:
 4. **Commit the plan docs** — your commit, by pathspec (`docs: plan <feature> taskNN…`). Consumed `specify` is
    forbidden from committing, so if you skip this the plan is never recorded and the next session re-plans it.
 5. **Implement** — dispatch per the wave protocol (children don't commit; you commit by pathspec; scoped tests
-   in-wave).
-6. **Gate** — full suite once per wave, mark `done`, update the file **before** the next task.
+   in-wave). Mark every task you dispatch in-progress in the session list first — **all of them at once.** A wave
+   is genuinely parallel; serialising the marks to imitate `implement`'s one-at-a-time style hides the concurrency
+   the list exists to show.
+6. **Gate** — full suite once per wave, mark `done`, update the file **and the session list** before the next wave.
+   The list's completion test is the row's test: complete an entry only when its Status row legitimately reads
+   `done` `<hash>` — committed **and** this wave's gate green. The wave protocol marks complete on the commit
+   alone; roadmap's `done` needs the gate, so nothing flips green before step 6 measures it. A red gate reopens
+   every entry in the wave; a BLOCKED sibling stays in-progress while its siblings complete. Never show the owner
+   a completion the status file cannot record.
 
 **Pipeline the next wave's planning over this wave's implementation.** A planner reads its own area and writes
 only its own plan file; an implementer writes only its owned set. Those do not collide, so while implementers run,
@@ -264,11 +285,15 @@ Never auto-merge over an unsubmitted human review: that ask exists precisely so 
 
 ## Step 5 — Ship the record, not just the code
 
-When no task is `todo`: run `review`, then `finish`. Before the last commit write
+When no task's **Status row** reads `todo` — read the column, never the session list — run `review`, then
+`finish`. Before the last commit write
 `<feature>-follow-ups.md` — plan and status file are deleted on ship, so anything deliberately not fixed
 dies with them unless written there first. On ship, `finish` deletes the whole `docs/roadmap/<feature>-*`
 family (plan, status, task plans, and follow-ups) after any follow-ups content is folded into
 `docs/features/` or an ADR.
+
+**Clear the session list here — you own this, `review` and `finish` do not do it.** Do it after the follow-ups
+content is folded and before `finish` deletes the family, so the owner sees the run close rather than vanish.
 
 ## Common mistakes
 
@@ -289,6 +314,8 @@ family (plan, status, task plans, and follow-ups) after any follow-ups content i
 | Four serial steps split into four tasks | Four `specify` dispatches and four implementers where one of each was enough. Merge a serial run into one task |
 | Handing each planner no grounding, or the report pasted through your context | Each planner re-reads the whole tree: observed 359.7k tokens / 88 tool calls / 281% of budget, compacting and re-reading. Ground once per area **to disk**; pass the planner the path |
 | Applying the ≤4 wave cap to planners | The cap is for build-cache contention. Planning is read-only — fan it out to the width of the graph |
+| Session list never built, or updated in a batch at the end | The list is the owner's only live view of a run that can span hours and waves. Unbuilt, the run looks stalled and gets interrupted mid-wave; batched, it lies about which tasks are finished |
+| Session list says complete, Status row cannot read `done` | Two artifacts disagreeing is the exact failure the truthfulness rules exist to prevent — the next iteration trusts the file and the owner trusts the list, and both are wrong about different tasks |
 
 **Violating the letter of these rules is violating their spirit.** "I'll note the phase status once, it's
 obvious" is how four contradictory headings got written.

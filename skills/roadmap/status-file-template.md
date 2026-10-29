@@ -25,7 +25,12 @@ The whole wave moves at once — planning fans out, it is not one task at a time
 task's Owns set mean the previous iteration died **mid-implementation** — that task is `implemented`, not
 `todo`, and its siblings may be half-written. Commit or set aside those edits first; never dispatch a new wave
 on a dirty tree. Then re-derive every task's state from the table's Status tests (plan file? changelog?
-commit?) — the tree outranks whatever value is written, so correct the column before acting on it.
+commit?) — the tree outranks whatever value is written, so correct the column before acting on it. Then rebuild
+the **session list** (`manage_todo_list`) from the corrected column — one entry per task row, `W<wave> · <task id>`,
+replacing whatever entries are there, including an empty list. The list is session-scoped and does not survive
+compaction, so on resume it is always wrong: rebuild it rather than trusting it. Map each row's Status to a list
+state — `todo`/`planned`/`vetted` → pending, `implemented` → in-progress (that row is the mid-implementation
+signal the paragraph above just established), `done` → complete.
 
 Loop protocol, per WAVE, repeat until `status: done`:
 1. Read this file. Take the FIRST wave containing a task whose Status is not `done`. Do not pick, reorder, or
@@ -50,7 +55,7 @@ Loop protocol, per WAVE, repeat until `status: done`:
    only for areas this wave's implementers do not touch. That overlap is where the wall-clock is won.
 8. Run the gate (full suite once per wave). Green -> commit by pathspec -> mark `done` here -> one Changelog
    line. Red -> re-dispatch; never fix by hand in the orchestrator.
-9. Update THIS FILE before starting the next wave. Then loop.
+9. Update THIS FILE **and the session list** before starting the next wave. Then loop.
 
 Steps 3-8 are roadmap's Step 4, same order, same meaning.
 
@@ -123,6 +128,11 @@ closes a hole that was actually hit.
 **Never write a phase-level status sentence.** Task rows are the only status. Four headings reading
 "Phase C: PLANNED + VETTED" sat directly above tables where every row said `done`; a future iteration
 re-planned finished work. Derive summaries from the rows at read time.
+
+**The session list is an output of this file, never an input.** Never record `manage_todo_list` state here, never
+add a column for it, never write "todos updated". On resume the Status column is rebuilt FROM the rows and never
+from the list — a list left behind by a compacted session is a claim with no measurement behind it, and the
+"only memory" rule above is what stops it from becoming a second source of truth.
 
 **Never restate a fact a test or script already owns.** File/export/mock counts, class strings, version
 numbers, line numbers: if an assertion or script can produce it, link the assertion. Every hand-copied

@@ -130,7 +130,7 @@ Instructions:
 
 ### Phase 4: Launch Watching Subagent
 
-To monitor ongoing CI runs, automated review bots (e.g. Greptile, GitHub Actions, typecheck), and approval transitions, the main agent dispatches a `general` subagent.
+To monitor ongoing CI runs, automated review bots (e.g. CodeRabbit, Dependabot, GitHub Actions, typecheck), and approval transitions, the main agent dispatches a `general` subagent.
 
 > ⚠️ **WATCHER REQUIREMENT:** The watcher subagent MUST NOT return prematurely while checks are in progress. It must actively poll until all checks reach terminal status (`COMPLETED`, `SUCCESS`, `FAILURE`).
 
@@ -149,7 +149,7 @@ subagent({
      sleep 20
    done
 2. Once checks complete, inspect if any checks failed. If failed, fetch logs with 'gh run view <run-id> --log-failed'.
-3. Check for any newly submitted review comments or threads (e.g. from Greptile or reviewers) using GraphQL.
+3. Check for any newly submitted review comments or threads (e.g. from review bots or human reviewers) using GraphQL.
 4. Fetch final review decision and mergeability ('gh pr view ${PR_NUMBER} --json reviewDecision,latestReviews,mergeable').
 5. Return a complete status report:
    - Final CI check status (all passed vs specific failures)

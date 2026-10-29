@@ -105,7 +105,6 @@ The [systematic-debugging skill](skills/systematic-debugging/) enforces a root-c
 | [systematic-debugging](skills/systematic-debugging/) | Any bug or test failure | Root-cause-first: investigate → analyze → hypothesize → fix. Stops after 3+ failed fixes to question architecture |
 | [test-driven-development](skills/test-driven-development/) | Before writing implementation code | RED-GREEN-REFACTOR cycle. No production code without a failing test first |
 | [verification-before-completion](skills/verification-before-completion/) | Before claiming work is done | Run the verification command. Read the output. Then claim the result. No "should work" without evidence |
-| [greptile](skills/greptile/) | "greptile review", "review with greptile" | Runs Greptile CLI iteratively on the local branch until all findings are resolved, then offers PR or merge |
 
 ### Project Operations
 

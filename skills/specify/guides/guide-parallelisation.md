@@ -6,7 +6,7 @@ How to decide whether a plan's tasks can run concurrently, and how to write that
 
 Every wave child gets **its own worktree and its own branch** (see the `trees-and-branches` skill), so siblings cannot corrupt each other's checkout or index. What they cannot do is see each other. Two consequences that do not announce themselves:
 
-- **A child verifies against the base plus its own work — nothing else.** Its full-suite run is a genuine measurement of *its* task, which is why isolation is worth the setup. But a sibling's work does not exist in its tree, so nothing in that child's report can tell you the two tasks work *together*. That is what the post-fan-in suite is for, and it is the one check that still catches the integration failure.
+- **A child verifies against the base plus its own work — nothing else.** Its own test run is a genuine measurement of *its* task, which is why isolation is worth the setup. But a sibling's work does not exist in its tree, so nothing in that child's report can tell you the two tasks work *together*. That is what the post-fan-in suite is for, and it is the one check that still catches the integration failure.
 - **A collision becomes a merge conflict, not a corrupt commit.** Two children touching one file each get their own clean commit now — but they conflict at fan-in, and the orchestrator resolves it by re-dispatching one of them. Wasted work, not silent corruption. Still a reason to split the wave.
 
 So "these two tasks are logically independent" is not the question. The question is whether each can be completed and proven from the base alone, and whether they merge cleanly afterwards.
@@ -37,7 +37,7 @@ A "register the components" or "wire up the module" task is gate 3 by definition
 
 ### 4. Provable from the base alone
 
-The task's acceptance criteria are provable in a checkout that contains the base **plus only this task's work**. A child now runs the full suite in its own worktree, so a whole-suite run is no longer disqualifying — it is the expected verification.
+The task's acceptance criteria are provable in a checkout that contains the base **plus only this task's work**. A child runs its own test files in its worktree, and the full suite runs once after fan-in. A whole-suite check is therefore not a child's check, but it does not disqualify a criterion. Needing a sibling's work present does.
 
 What still disqualifies: criteria that are secretly **integration** assertions — "the endpoint returns 401", "the migration applies cleanly", "the CLI command works" — where proving them needs a *sibling's* work present. In the child's tree that work does not exist, so the child either stubs the interface (the expensive outcome: it passes alone and breaks at fan-in, where nothing can attribute it) or reports BLOCKED for a dependency that was never missing. Such a task belongs in a later wave, or in the fan-in gate.
 

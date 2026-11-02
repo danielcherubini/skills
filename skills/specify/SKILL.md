@@ -36,6 +36,9 @@ owns every sub-agent. In consumed mode:
 - Plan exactly **ONE task** (described by the task text), NOT a whole feature. The invocation also supplies a
   **grounding report path** and the task's **owned file set** — consume both (see *Ground the Plan First*); a
   missing report path is the only grounding you should ever have to do yourself.
+- **`Builds on:`** — the verbatim signatures this task consumes from other tasks in the same run, each with its
+  producing task id, or `none`. Plan against these signatures. Other tasks' plan files do not exist yet (all plans
+  are written in one response), so do not read them. Do not invent a signature that is not listed.
 - **Ground the plan inline** — read the files, grep the real signatures, confirm each path exists (see *Ground the Plan First*). If you genuinely have a `subagent` tool, dispatch `researcher` instead and say so.
 - The target path is the `target:` stated in the invocation text (e.g. `docs/roadmap/<feature>-taskNN-<slug>.md`). If no `target:` is present, **stop and report NEEDS_CONTEXT** — never guess a path.
 - Write the plan to the target path with front-matter `status: committed`, a `parent: docs/roadmap/<feature>.md` key, and `done-when`. The target file is the **only** file you write — never a grounding report, never source, never the status file.
@@ -131,7 +134,7 @@ Test each candidate wave against ALL SIX gates. A task joins a wave only if it c
 1. **Disjoint files** — `Files:` lists (Create + Modify + **Test**) share ZERO paths, pairwise.
 2. **No build-graph dependency** — A cannot `import`/`use` a symbol B creates in the same wave.
 3. **No shared mutable artifact** — lockfiles, migrations, generated code, shared fixtures, `mod.rs`/`__init__.py`/barrel files, route or middleware registration, config. **Check the commands, not just the file lists**: a task verified through `uv run` / `npm test` / `cargo test` can rewrite a lockfile or write snapshots without naming them in `Files:`.
-4. **Provable from the base alone** — acceptance criteria provable in a checkout holding the base plus only this task's work. Each child runs the full suite in its own worktree, so a suite run is no longer disqualifying; needing a *sibling's* work present to pass is.
+4. **Provable from the base alone** — acceptance criteria provable in a checkout holding the base plus only this task's work. Each child runs its own test files in its worktree, and the full suite runs once after fan-in. A criterion can be checked by the full suite; needing a *sibling's* work present to pass is still disqualifying.
 5. **No tree-wide mutation** — whole-tree formatters, lockfile regeneration, codegen. Harmless inside one worktree, but two children who both rewrote everything collide across every file at fan-in.
 6. **Wave size ≤ 4** — beyond four, each new worktree pays its own dependency install and the global caches (`~/.cache/go-build`, module cache) are still shared, so the win flattens.
 
@@ -205,7 +208,7 @@ A precise description of the change. Include:
 - [ ] Run `[exact build command]` (e.g. `cargo build`)
   - Did it succeed? If not, fix and re-run before continuing.
 - [ ] Commit with message: "[suggested commit message]"
-  - **Wave tasks differ:** a task declared `**Parallel:** wave N` must NOT commit — the orchestrator commits its files after the wave (see *Parallel wave rules* below). Write the commit message here anyway; the orchestrator uses it verbatim.
+  - **Wave tasks differ:** a task declared `**Parallel:** wave N` commits on its own task branch, per *Parallel wave rules* below; a serial task commits on the feature branch. Write the commit message here; the child uses it verbatim.
 
 **Acceptance criteria:**
 - [ ] [Specific, verifiable outcome]
@@ -219,7 +222,7 @@ Each task must be independently commitable. The agent executing it has no contex
 The invariants the `**Parallel:**` lines encode — `implement` executes these, so a plan claiming PARALLEL must hold all four:
 
 - **Each wave child gets its own worktree and branch** (`feature/<topic>-taskN`, all from one recorded base) and **commits there** with the plan's message. It must never touch the feature branch or `main`. A wave that ends up width 1 runs as a plain serial task, and serial tasks work in the primary checkout and commit as usual.
-- **In-wave verification is complete but local** — the child runs the full suite in its own worktree, where that result measures only its own work. It cannot observe a sibling, so it cannot certify the combination.
+- **In-wave verification is complete but local** — the child runs its own test files in its worktree, where that result measures only its own work. It cannot observe a sibling, so it cannot certify the combination.
 - **The orchestrator fans the branches in, in plan order, then runs the full suite on the integrated tree** — so acceptance criteria are provable by per-child suite + integrated suite together. Each task stays its own commit, which is what makes a post-wave failure bisectable.
 - **A wave is a barrier** — dispatch all of wave N together, wait for all, fan in, then wave N+1. A BLOCKED sibling holds the following waves; its partial work stays isolated in its own worktree.
 

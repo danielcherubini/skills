@@ -35,37 +35,30 @@ compaction, so on resume it is always wrong: rebuild it rather than trusting it.
 state — `todo`/`planned`/`vetted` → pending, `implemented` → in-progress (that row is the mid-implementation
 signal the paragraph above just established), `done` → complete.
 
-Loop protocol, per WAVE, repeat until `status: done`:
-1. Read this file. Take the FIRST wave containing a task whose Status is not `done`. Do not pick, reorder, or
-   skip. **Re-entering a half-finished wave resumes at the first incomplete step below — never re-dispatch a
-   step whose output already exists** (area already in the Grounding reports table → skip grounding it; plan
-   file already present → skip planning it).
-2. Verify each task in the wave against the tree. Trust the tree over the task text. Re-check the Owns sets
-   are still disjoint — the tree outranks this table.
-3. Ground: one `researcher` per area not yet grounded, all in one response, each WRITING
-   `docs/roadmap/<feature>-ground-<area>.md`. Never ground per task — a planner handed no grounding re-reads
-   the whole tree (observed: 359.7k tokens / 88 tool calls / 281% of budget).
-4. Plan: dispatch `specify` in CONSUMED MODE to `researcher` (`agentName: "researcher"`) for every todo task in the wave that has NO plan file yet (on
-   resume, skip tasks already planned in a half-finished wave), all in one response — marker
-   `SPECIFY CONSUMED MODE`, the task text, its Owns set, the grounding FILE PATH (not its contents), and
-   `target: docs/roadmap/<feature>-taskNN-<slug>.md`. Not capped at 4; planning is read-only.
-5. Vet: one `reviewer` per plan file in one response (max 3 rounds each), told to OPEN the files the plan
-   names; findings -> re-dispatch consumed specify to refine the SAME target.
-6. Commit the plan docs yourself, by pathspec — the child is forbidden from committing, so an uncommitted plan
-   gets re-planned by the next session.
-7. Implement the wave per implement's wave protocol (children commit on their own branch; you integrate their
-   work; <=4 implementers). Width >=2 forces one worktree + one branch per task; **width 1 is a decision** —
-   isolate if you will pipeline planners over this child (they cannot read a tree it is editing), otherwise run it
-   in the primary tree and skip the overlap. Record the choice beside the wave. In the SAME response, dispatch
-   planning for the NEXT wave's tasks —
-   only for areas this wave's implementers do not touch. That overlap is where the wall-clock is won.
-8. Integrate the task branches in plan order, then run the gate (full suite once per wave, on the integrated tree).
-   Green -> mark `done` here -> one Changelog
-   line. Red -> re-dispatch; never fix by hand in the orchestrator. Remove the task worktrees, then delete the
-   task branches (git refuses the reverse order).
-9. Update THIS FILE **and the session list** before starting the next wave. Then loop.
+Loop protocol — the run's phases, in order (mirrors `skills/roadmap/SKILL.md` Steps 0–8; a resumed run starts at the
+first step whose output is missing, never re-dispatches a step whose output already exists):
+1. **Decompose & branch** (Step 0): tasks drafted, areas assigned, feature branch exists, session list built. Skip
+   if the Tasks table already has rows.
+2. **Fan out** (Step 1): one baseline child (`explore`) measures the gate; one `researcher` per area not yet in the
+   Grounding table writes its report with `## Will touch`, `## Provides` and `## Needs from other areas`. One response.
+3. **Resolve** (Step 2): merge tasks that share a Will-touch file; record each dependency edge with its verbatim
+   signature in the graph below; re-label the session list; commit the status file and reports by pathspec.
+4. **Plan every task** (Step 3): consumed `specify` via `researcher` for every task with no plan file yet, all in one
+   response. Each dispatch carries `Builds on:` with the signatures from step 3's graph.
+5. **Vet & commit plans** (Step 4): one `reviewer` per plan, one pass. Only 🔴 findings send a plan back, re-vetted
+   alone. Commit the plans by pathspec.
+6. **Implement, one wave at a time** (Step 5): mark the wave in-progress in the session list, dispatch its `general`
+   children (≤4), each running its own test files only. A signature change is reported as `DEVIATION:` and the later
+   plans that build on it are re-planned before the next wave.
+7. **Gate** (Step 6): fan in in plan order; run the baseline command once on the integrated tree; only new failures
+   count. Green → `done <hash>` here, one Changelog line, session list updated. Red → step 8.
+8. **Fix** (Step 7): failures assigned to the task that owns the file; fixers in worktrees; at most 2 rounds. Still
+   red → `blocked` with evidence in Blockers, and only the dependent waves stop.
+9. **Ship** (Step 8): when no row reads `todo`, `planned`, `vetted` or `implemented`, run `review`, then `finish`.
+   Clear the session list after the follow-ups are folded.
 
-Steps 3-8 are roadmap's Step 4, same order, same meaning.
+Steps 1–9 are the roadmap skill's Steps 0–8, same order, same meaning.
+
 
 ## Gate — establish before task 1, re-run after every wave (and after each serial task)
     <exact commands, from which directory>
@@ -108,6 +101,7 @@ since — `git log --oneline <commit>..HEAD -- <area paths>`, not a feeling.
 | `vetted` | plan file exists **and** a Changelog line records the vet round for it |
 | `implemented` | the task's edits exist uncommitted in its worktree, **or** are committed on its task branch but not yet merged into the feature branch |
 | `done` `<hash>` | gate green **and** the task's branch is merged into the feature branch — `<hash>` is the **child's own commit**, which always exists (the first fan-in fast-forwards and creates no merge commit). Verify with `git merge-base --is-ancestor <hash> HEAD` |
+| `blocked` | still red after 2 fix rounds (Step 7), or a sibling in its wave is blocked. The evidence goes in Blockers. Dependent waves do not start |
 
 Write the value only when its test passes — `done` still means the acceptance criterion measured true, not that
 steps ran. These are task states, not phase prose: never add a sentence summarising a wave's state, derive it

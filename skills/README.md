@@ -12,7 +12,7 @@ The trick is structure. If you break work into the right stages, each one produc
 
 ```
 Small scope: entry → specify → implement → review → finish
-Large scope: entry → roadmap → ( specify → implement per task, in waves ) → review → finish
+Large scope: entry → roadmap ( ground → plan every task → vet → implement one wave at a time → gate → fix ) → review → finish
 ```
 
 - **discuss** — collaborative design dialogue. Produces an approved spec with clear terminology, trade-offs, and acceptance criteria, written to `docs/roadmap/`.
@@ -97,7 +97,7 @@ Which skill the pipeline starts from — and whether it routes to `roadmap` or s
 3. **Chaining** — Skills naturally flow into each other:
    ```
    Small scope: entry → specify → implement → review → finish
-   Large scope: entry → roadmap → ( specify → implement per task, in waves ) → review → finish
+   Large scope: entry → roadmap ( ground → plan every task → vet → implement one wave at a time → gate → fix ) → review → finish
    ```
 
 ## Adding New Skills

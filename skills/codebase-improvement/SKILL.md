@@ -154,7 +154,7 @@ ask({
 })
 ```
 
-- **Decompose into roadmap** → Clear todo list, load the `roadmap` skill and pass the approved backlog (roadmap runs its own Step 0 entry confirmation). An audit backlog is inherently multi-task, so this is the default — it needs no extra confirmation beyond this menu. (This deliberately differs from `discuss`, which routes small single-design work straight to `specify`.)
+- **Decompose into roadmap** → Clear todo list, load the `roadmap` skill and pass the approved backlog (roadmap runs its own entry confirmation). An audit backlog is inherently multi-task, so this is the default — it needs no extra confirmation beyond this menu. (This deliberately differs from `discuss`, which routes small single-design work straight to `specify`.)
 - **Save for later** → Report already saved in `docs/reviews/`
 - **Revise findings** → Return to Phase 2 with refined angles
 

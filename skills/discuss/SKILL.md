@@ -212,7 +212,7 @@ Once the design is approved by the user, write the complete spec (already presen
      ask({ questions: [{ id: "route", question: "This is large enough to split into a tracked multi-task run. Route to roadmap or plan as one shot (specify)?", options: [ { label: "Roadmap — decompose into tasks and run in waves (recommended)" }, { label: "Specify — one plan, one PR" }, { label: "Hold" } ] }] })
      ```
 
-     - **Roadmap** → clear the todo list, load the `roadmap` skill (roadmap runs its own Step 0 entry confirmation).
+     - **Roadmap** → clear the todo list, load the `roadmap` skill (roadmap runs its own entry confirmation).
      - **Specify** → the small-scope handoff above.
      - **Hold** → stop; the spec stays on disk for a later session.
 

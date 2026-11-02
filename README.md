@@ -7,7 +7,7 @@ large block of work that must be split into tasks and driven across sessions:
 
 ```
 Small scope: entry → specify → implement → review → finish
-Large scope: entry → roadmap → ( specify → implement per task, in waves ) → review → finish
+Large scope: entry → roadmap ( ground → plan every task → vet → implement one wave at a time → gate → fix ) → review → finish
 ```
 
 The **entry** is whichever skill produced the approved work: `discuss`, `research`, or `codebase-improvement`.
@@ -15,7 +15,7 @@ The **entry** is whichever skill produced the approved work: `discuss`, `researc
 is the fine grain.
 
 1. **discuss** — Collaborative design dialogue before coding. Establishes shared terminology, proposes approaches with trade-offs, captures ADRs and glossary terms, writes the approved spec to `docs/roadmap/`. Hard gate — no code until design is approved.
-2. **roadmap** — (Large scope only.) Decomposes an approved block into N tasks, computes the dependency graph, groups tasks into waves on **one** feature branch, and runs autonomously — the status file is its only memory. It drives `specify` in **consumed mode** per task (no ask, plan written to a per-task path and returned), then commits each task by pathspec. One entry confirmation (baseline + graph), then silent until done.
+2. **roadmap** — (Large scope only.) Decomposes an approved block into N tasks, computes the dependency graph, grounds each code area once, plans every task before any implementer starts, then runs the waves on **one** feature branch. The status file is its only memory. It drives `specify` in **consumed mode** per task (no ask, plan written to a per-task path and returned). The orchestrator commits the plan docs and the status file itself. One entry confirmation (baseline + graph), then silent until done.
 3. **specify** — Turns an approved design (or one roadmap task) into independent, commitable tasks with exact file paths, function names, and test commands. Written for a context-free agent. Outputs to `docs/roadmap/`.
 4. **implement** — Executes the plan: creates feature branch, runs baseline checks, dispatches subagents per task (TDD-driven), handles reviews, opens PRs. In the large shape, `roadmap` applies implement's wave protocol directly instead of loading implement per task.
 5. **finish** — Checks reviews and CI, fixes issues, merges the PR, syncs local main, deletes the whole `docs/roadmap/<feature>-*` family (history lives in git).

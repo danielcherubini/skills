@@ -94,14 +94,18 @@ Read `AGENTS.md` (or `CLAUDE.md`) before the first question: it carries the proj
 
 Resolve in this order and **stop at the first answer** — do not infer a tracker from a remote URL when a stated one exists.
 
-1. **`AGENTS.md` / `CLAUDE.md`** — an explicit tracker statement wins.
-2. **The tracker's own CLI**, when present and authenticated (`gh repo view --json url,nameWithOwner`, or the tool named by the project). It reports the *canonical* location.
-3. **An existing `issue:` front-matter key** in the roadmap doc or a sibling doc in `docs/roadmap/`.
-4. **Nothing found** → no tracker. Mention it once and carry on.
+1. **`AGENTS.md` / `CLAUDE.md`** — an explicit tracker statement wins. Check here first:
+   - **Jira**: If `AGENTS.md`/`CLAUDE.md` specifies Jira (e.g. mentions Jira, a project key like `SUWS`, or Jira issue formatting), the tracker is **Jira**.
+   - **GitHub**: If `AGENTS.md`/`CLAUDE.md` specifies GitHub Issues (or mentions `gh issue`), the tracker is **GitHub**.
+2. **The tracker's own CLI or MCP tools**, when present and authenticated:
+   - `gh repo view --json url,nameWithOwner` succeeds → **GitHub**.
+   - Atlassian MCP tool `atlassian_getAccessibleAtlassianResources` is available → **Jira**.
+3. **An existing `issue:` front-matter key** in the roadmap doc or a sibling doc in `docs/roadmap/`:
+   - A Jira key/URL (`https://*.atlassian.net/...` or `PROJ-123`) → **Jira**.
+   - A GitHub issue URL (`https://github.com/.../issues/...`) → **GitHub**.
+4. **Nothing found** → no tracker. Skip the issue creation ask, mention it once, and carry on.
 
 **Do not derive the URL from `git remote`.** A renamed repo keeps answering on its old name forever — GitHub redirects so clones and pushes keep working — so the remote is the one signal that survives being wrong, and publishing to it files against a moved repo. `gh repo view` resolves the redirect; `git remote -v` does not.
-
-**Platform is whatever the project uses.** The mechanics above are GitHub-shaped because that is what this environment has a CLI for; a project on Jira/Linear/etc. names its own tool (e.g. the Atlassian MCP's `getJiraIssue` — the `implement` skill already takes Jira ticket links) and posts through it. Never assume GitHub from the presence of a `.git` directory.
 
 ## After Each Section Approval
 
@@ -157,7 +161,11 @@ Once the design is approved by the user, write the complete spec (already presen
    Check if the roadmap path is gitignored (`git check-ignore -q docs/roadmap/<topic>.md`). If it is NOT gitignored, commit the roadmap doc (`git add docs/roadmap/<topic>.md && git commit -m "docs: add <topic> spec"`) so the spec version is preserved in git history before the plan replaces it. **Never use `git add -f`** if the directory is gitignored.
    The roadmap doc is the spec. No separate *local* index. On ship: fold durable content into `docs/features/` (or a new decision) and delete the roadmap doc.
 
-1b. **Ask to mirror the spec to the issue tracker.** Ask the user if they want to create/update an issue on GitHub:
+1b. **Ask to mirror the spec to the issue tracker.**
+   If no tracker was found in **Which tracker?**, skip this step.
+   Otherwise, ask the user if they want to create/update an issue or ticket on the resolved tracker:
+
+   **When tracker is GitHub:**
    ```typescript
    ask({
      questions: [{
@@ -170,13 +178,29 @@ Once the design is approved by the user, write the complete spec (already presen
      }]
    })
    ```
-   If the user selects to create/update:
-   - Resolve the tracker — see **Which tracker?** above. No tracker found, or `gh` unavailable / unauthenticated → say so out loud and continue. NEVER block the handoff on it, and never guess a URL.
+   If confirmed:
    - Reuse the issue already tied to this topic (an `issue:` key in the doc's front-matter, or an open issue whose title names it); otherwise open one titled the topic: `gh issue create --title "<topic>" --body "Spec artifact attached."`
    - Attach the markdown spec file as an issue artifact:
      `gh issue artifact create <issue-number> docs/roadmap/<topic>.md`
    - Write the URL into the doc's front-matter as `issue: <url>` (if the doc is tracked in git, amend the commit; do not force-commit if gitignored).
    - If `gh issue artifact` is unavailable or fails, fall back to posting the spec body as a comment with the front-matter stripped (split across consecutive comments if over the 65 KB limit).
+
+   **When tracker is Jira:**
+   ```typescript
+   ask({
+     questions: [{
+       id: "mirror-issue",
+       question: "Design approved and saved to docs/roadmap/<topic>.md. Create or mirror to a Jira ticket?",
+       options: [
+         { label: "Create or update Jira ticket with spec (recommended)" },
+         { label: "Skip ticket creation (keep spec local on disk only)" }
+       ]
+     }]
+   })
+   ```
+   If confirmed:
+   - Reuse the ticket already tied to this topic (an `issue:` key in the doc's front-matter); otherwise load the `create-jira-ticket` skill (or invoke `atlassian_createJiraIssue` with `contentFormat: "markdown"`) using project routing from `AGENTS.md` / `CLAUDE.md` / `create-jira-ticket`.
+   - Post or link the spec description, and write the ticket key or URL into the doc's front-matter as `issue: <key-or-url>`.
 
 2. **Hand off for small scope silently; for HUGE scope ask once (roadmap vs specify).** The spec on disk is a draft; the next skill finalizes it.
 

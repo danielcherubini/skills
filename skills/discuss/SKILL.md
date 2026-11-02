@@ -26,7 +26,7 @@ Before starting the design flow, check `docs/roadmap/<topic>.md` for the current
       options: [
         { label: "Plan it — expand the spec into the task-level implementation plan (load the specify skill; a new artifact, not a redo)" },
         { label: "Run a reviewer on the spec" },
-        { label: "Mirror the spec to the issue tracker (step 1b)" },
+        { label: "Mirror the spec to the issue tracker and attach artifact (step 1b)" },
         { label: "Revise the design" },
         { label: "No action for now" }
       ],
@@ -154,15 +154,29 @@ Once the design is approved by the user, write the complete spec (already presen
    ---
    ```
    If `docs/roadmap/<topic>.md` already exists, read it first. If its front-matter says `status: committed` (an in-flight plan), gate with `ask` before overwriting — confirm the replacement or use a different topic filename. Otherwise (an earlier spec), mention what you're replacing.
-   Commit the roadmap doc (`git add docs/roadmap/<topic>.md && git commit -m "docs: add <topic> spec"`) so the spec version is preserved in git history before the plan replaces it.
-   The roadmap doc is the spec. No separate *local* index — but it IS mirrored to the issue tracker (step 1b). "History lives in git" means no duplicate copy tree; it never means the spec stays invisible to reviewers.
-   On ship: fold durable content into `docs/features/` (or a new decision) and delete the roadmap doc.
+   Check if the roadmap path is gitignored (`git check-ignore -q docs/roadmap/<topic>.md`). If it is NOT gitignored, commit the roadmap doc (`git add docs/roadmap/<topic>.md && git commit -m "docs: add <topic> spec"`) so the spec version is preserved in git history before the plan replaces it. **Never use `git add -f`** if the directory is gitignored.
+   The roadmap doc is the spec. No separate *local* index. On ship: fold durable content into `docs/features/` (or a new decision) and delete the roadmap doc.
 
-1b. **Mirror the spec to the issue tracker.** The file is the source of truth; the issue is a review mirror, never the reverse.
+1b. **Ask to mirror the spec to the issue tracker.** Ask the user if they want to create/update an issue on GitHub:
+   ```typescript
+   ask({
+     questions: [{
+       id: "mirror-issue",
+       question: "Design approved and saved to docs/roadmap/<topic>.md. Create or mirror to a GitHub issue?",
+       options: [
+         { label: "Create or update issue and attach spec artifact (recommended)" },
+         { label: "Skip issue creation (keep spec local on disk only)" }
+       ]
+     }]
+   })
+   ```
+   If the user selects to create/update:
    - Resolve the tracker — see **Which tracker?** above. No tracker found, or `gh` unavailable / unauthenticated → say so out loud and continue. NEVER block the handoff on it, and never guess a URL.
-   - Reuse the issue already tied to this topic (an `issue:` key in the doc's front-matter, or an open issue whose title names it); otherwise open one titled the topic.
-   - Post the spec body as a comment with the front-matter stripped, then write the URL into the doc's front-matter as `issue: <url>` — into the spec commit (`--amend`) while it is still unpushed, else a follow-up commit.
-   - GitHub caps a comment near 65 KB. Over the cap, split across consecutive comments labelled `n of N` and say which part each holds — never truncate.
+   - Reuse the issue already tied to this topic (an `issue:` key in the doc's front-matter, or an open issue whose title names it); otherwise open one titled the topic: `gh issue create --title "<topic>" --body "Spec artifact attached."`
+   - Attach the markdown spec file as an issue artifact:
+     `gh issue artifact create <issue-number> docs/roadmap/<topic>.md`
+   - Write the URL into the doc's front-matter as `issue: <url>` (if the doc is tracked in git, amend the commit; do not force-commit if gitignored).
+   - If `gh issue artifact` is unavailable or fails, fall back to posting the spec body as a comment with the front-matter stripped (split across consecutive comments if over the 65 KB limit).
 
 2. **Hand off for small scope silently; for HUGE scope ask once (roadmap vs specify).** The spec on disk is a draft; the next skill finalizes it.
 
@@ -205,7 +219,7 @@ If the user explicitly asks to run a reviewer (before the handoff), THEN:
    })
    ```
 
-3. Fix selected issues one at a time, applying each fix to `docs/roadmap/<topic>.md` so the file stays the source of truth. Re-run the reviewer once after all fixes — it reviews the updated file. If the spec was already mirrored to the tracker (step 1b), the posted copy is now stale: post the corrected body as a follow-up comment saying it supersedes the earlier one.
+3. Fix selected issues one at a time, applying each fix to `docs/roadmap/<topic>.md` so the file stays the source of truth. Re-run the reviewer once after all fixes — it reviews the updated file. If the spec was already mirrored to the tracker (step 1b), update the artifact: `gh issue artifact edit <issue-number> <artifact-number> -F docs/roadmap/<topic>.md` (or post a follow-up comment saying it supersedes the earlier one if the comment fallback was used).
 4. After review is complete, hand off per the After Approval discriminator (specify silently for small scope; roadmap for HUGE scope).
 
 If the user (before the handoff) asks to revise the design: go back to the discussion process (from the section that needs rework). Once the revised design is approved, update `docs/roadmap/<topic>.md` with the new spec, then hand off per the After Approval discriminator (specify silently for small scope; roadmap for HUGE scope).

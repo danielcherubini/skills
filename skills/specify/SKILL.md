@@ -29,7 +29,7 @@ The behavior described in the rest of this document, unchanged: read the input �
 ### Consumed mode
 
 Entered **only** when the invoking task text contains the exact marker `SPECIFY CONSUMED MODE`. Used by the
-`roadmap` skill, which runs `specify` once per task. Consumed mode is normally run **as a dispatched child**
+`implement` skill's COARSE path, which runs `specify` once per task. Consumed mode is normally run **as a dispatched child**
 (`researcher`, `agentName: "researcher"`), which has **no `subagent` tool** — so consumed mode never dispatches anything itself; the caller
 owns every sub-agent. In consumed mode:
 
@@ -42,8 +42,8 @@ owns every sub-agent. In consumed mode:
 - **Ground the plan inline** — read the files, grep the real signatures, confirm each path exists (see *Ground the Plan First*). If you genuinely have a `subagent` tool, dispatch `researcher` instead and say so.
 - The target path is the `target:` stated in the invocation text (e.g. `docs/roadmap/<feature>-taskNN-<slug>.md`). If no `target:` is present, **stop and report NEEDS_CONTEXT** — never guess a path.
 - Write the plan to the target path with front-matter `status: committed`, a `parent: docs/roadmap/<feature>.md` key, and `done-when`. The target file is the **only** file you write — never a grounding report, never source, never the status file.
-- **The reviewer vet is the caller's, not yours.** Do not dispatch a reviewer — a child cannot, and promising one silently produces an un-vetted plan. `roadmap` vets the plan you write (see its Step 4) and re-dispatches you to refine it if the vet finds anything. If you *are* running with a `subagent` tool, run the vet as described in *After Plan is Written*.
-- Perform **neither** the spec-doc commit **nor** the issue-tracker mirror — the caller (`roadmap`) owns both.
+- **The reviewer vet is the caller's, not yours.** Do not dispatch a reviewer — a child cannot, and promising one silently produces an un-vetted plan. `implement`'s COARSE path vets the plan you write (see its Step 4) and re-dispatches you to refine it if the vet finds anything. If you *are* running with a `subagent` tool, run the vet as described in *After Plan is Written*.
+- Perform **neither** the spec-doc commit **nor** the issue-tracker mirror — the caller (`implement` COARSE) owns both.
 - Do **NOT** perform the HARD BREAK, do **NOT** call `ask`, do **NOT** load the `implement` skill. Return control with a one-line "plan written to <target>" report, plus anything you could not verify so the caller's vet can target it.
 
 ## Input
@@ -71,8 +71,8 @@ stall looking for a tool you were never given:
 
 - **You have a `subagent` tool** (you are the main agent, running standalone `specify`) → **dispatch
   `researcher`** and write the plan from its report.
-- **You do not** (you were dispatched as a child, which is how `roadmap` runs consumed `specify` via `researcher`) → **read the
-  grounding report the caller hands you.** A `roadmap` dispatch supplies a path like
+- **You do not** (you were dispatched as a child, which is how `implement`'s COARSE path runs consumed `specify` via `researcher`) → **read the
+  grounding report the caller hands you.** An `implement` COARSE dispatch supplies a path like
   `docs/roadmap/<feature>-ground-<area>.md`; open it and plan from it. It already contains the file inventory,
   the verbatim signatures, and the test commands — that is why it exists.
   - **Read the report first, then read only what it does not answer.** Do not re-walk the tree to re-confirm
@@ -127,7 +127,7 @@ Decide this while writing the plan, not after. Emit a `## Parallelisation` verdi
 
 **Consumed mode exception:** a consumed-mode plan contains exactly one task, so it has nothing to parallelise
 with. Write `## Parallelisation` with a `SERIAL` verdict (one task cannot be a wave) and emit no `**Parallel:**`
-line. Parallelism in a `roadmap` run happens **between tasks**, in the wave grouping roadmap owns.
+line. Parallelism in a COARSE run happens **between tasks**, in the wave grouping `implement` owns.
 
 Test each candidate wave against ALL SIX gates. A task joins a wave only if it clears every one; a task that clears none runs alone (which does not disqualify the tasks that do clear them).
 
@@ -251,7 +251,7 @@ Fix issues (max 3 rounds).
 
 **CRITICAL: Do NOT begin implementing any tasks in the plan. The `specify` skill ends once the plan is vetted and presented to the user. The plan is handed off to the `implement` skill, which will ask the user to confirm plan selection before executing.**
 
-**In consumed mode, skip the HARD BREAK below** — do not ask, do not load `implement`; return control to the caller. **The reviewer dispatch above runs only if you actually have a `subagent` tool** (true standalone, false when you are the consumed-mode child) — when you do not, the caller (`roadmap`) vets the plan you wrote; never report a vet you did not run as one you did.
+**In consumed mode, skip the HARD BREAK below** — do not ask, do not load `implement` (its COARSE path is what dispatched you — loading it recurses); return control to the caller. **The reviewer dispatch above runs only if you actually have a `subagent` tool** (true standalone, false when you are the consumed-mode child) — when you do not, the caller (`roadmap`) vets the plan you wrote; never report a vet you did not run as one you did.
 
 **HARD BREAK — STOP here and ask. Do NOT continue into implementation on your own.**
 

@@ -225,7 +225,7 @@ for f in "docs/roadmap/${FEATURE_NAME}.md" \
   # `-ground-*` is anchored to ${FEATURE_NAME} on purpose: a bare `-ground-` would also match an
   # unrelated doc that merely contains the word (play-ground-refactor.md).
   [ -e "$f" ] || continue
-  # `rm`, not `git rm`: the status file and task plans are written by the roadmap run and are
+  # `rm`, not `git rm`: the status file and task plans are written by the implement COARSE run and are
   # frequently UNTRACKED or locally modified, which `git rm` refuses without -f.
   rm -f -- "$f"
   removed=1

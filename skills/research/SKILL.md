@@ -180,10 +180,10 @@ ask({
       { label: "Targeted deep-dive on specific gaps" },
       { label: "Add a research dimension" },
       { label: "Reframe the question" },
-      { label: "Roadmap — decompose the tracks and run them" }
+      { label: "Decompose and run in waves — implement's multi-task path" }
     ],
     multi: true,
-    description: "**Write report to disk:** Write the final report as a .md file (do NOT re-print it)\n**Move to Approved:** Deliver first, then move the Task card to Approved and hand implementation to a fresh Session (see the Phase 5 table). Only offered when Phase 1 step 4 found a `<task>` block.\n**Discuss findings:** Load the discuss skill to design or plan based on these findings\n**Targeted deep-dive:** Dispatch more researchers on specific gaps\n**Add dimension:** Dispatch a new angle not in original plan\n**Reframe:** Start over with revised question\n**Roadmap:** When (and only when) the findings imply multiple separate implementation tracks, load the roadmap skill with those tracks as the approved block (see Phase 5)"
+    description: "**Write report to disk:** Write the final report as a .md file (do NOT re-print it)\n**Move to Approved:** Deliver first, then move the Task card to Approved and hand implementation to a fresh Session (see the Phase 5 table). Only offered when Phase 1 step 4 found a `<task>` block.\n**Discuss findings:** Load the discuss skill to design or plan based on these findings\n**Targeted deep-dive:** Dispatch more researchers on specific gaps\n**Add dimension:** Dispatch a new angle not in original plan\n**Reframe:** Start over with revised question\n**Decompose and run in waves:** When (and only when) the findings imply multiple separate implementation tracks, load the implement skill with those tracks as the approved block (see Phase 5)"
   }]
 })
 ```
@@ -193,7 +193,7 @@ block** — with no card there is nothing to move, and an option that cannot run
 control. It composes with "Write report to disk" (multi-select): delivering is a
 prerequisite for the move, not an alternative to it.
 
-**It does not compose with "Discuss findings" or "Roadmap"** — those continue the work in
+**It does not compose with "Discuss findings" or "Decompose and run in waves"** — those continue the work in
 *this* session, the move ends it. If both come back selected, ask once which was meant
 before doing either; do not resolve it by picking one silently.
 
@@ -209,7 +209,7 @@ After calling ask(), **stop**. Wait for the response.
 | Add dimension | Dispatch new angle, re-synthesise |
 | Reframe | Return to Phase 1 with revised question |
 | Move to Approved | **Only selectable alongside "Write report to disk"** — deliver first, then hand off. Load `move-task-to-approved` and follow it: attach the report as the card's `research` artifact if Phase 5 has not already, `list_board(space_path)` to read the Approved column's real slug, `move_task`, verify with `get_task`, then tell the user to **archive this session**, open the Tasks board, and click the card's **arrow pill** to launch a fresh Session. **Then stop — do not load `implement` or `discuss`.** No `<task>` block found → this option was never offered. |
-| Roadmap | When (and only when) the findings imply multiple separate implementation tracks: load the `roadmap` skill, passing those tracks as the approved block — **and the `<task id="tsk_…">` block verbatim if Phase 1 step 4 found one**, since `roadmap` is loaded mid-session, never sees that block, and has no spec doc of its own to read an id from when the entry is `research`. (If combined with "Write report to disk" via multi-select, write the report first, then load roadmap.) This does not change research's default — deliver-only stays the default. |
+| Decompose and run in waves | When (and only when) the findings imply multiple separate implementation tracks: load the `implement` skill, passing those tracks as the approved block — **and the `<task id="tsk_…">` block verbatim if Phase 1 step 4 found one**, since `implement` is loaded mid-session, never sees that block, and has no spec doc of its own to read an id from when the entry is `research`. It takes its COARSE path. (If combined with "Write report to disk" via multi-select, write the report first, then load implement. This does not change research's default — deliver-only stays the default. |
 
 Final report format (always include front-matter):
 

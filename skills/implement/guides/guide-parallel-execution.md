@@ -1,15 +1,15 @@
 # Parallel Execution Guide
 
-How to verify a plan's waves against the real tree, run them safely in isolated worktrees, and integrate the result. Load this when the plan declares `**Verdict:** PARALLEL`, **or when the `roadmap` skill applies this protocol to task waves.** The invariants in `implement`'s own text still apply — this is the detail, not a replacement. Branch and worktree mechanics live in the `trees-and-branches` skill.
+How to verify a plan's waves against the real tree, run them safely in isolated worktrees, and integrate the result. Load this when the plan declares `**Verdict:** PARALLEL`, **or when the COARSE path applies this protocol to task waves.** The invariants in `implement`'s own text still apply — this is the detail, not a replacement. Branch and worktree mechanics live in the `trees-and-branches` skill.
 
 ## Two grains
 
 This protocol governs waves at **two grains**:
 
 - **(a) Intra-plan** — sub-tasks within one committed plan. `specify` emits the `**Parallel:**` lines, and each task's `Files:` list is the disjointness evidence.
-- **(b) Inter-task** — roadmap tasks within a run. `roadmap` emits the wave grouping and judges disjointness from each task's **owned file set** (its status-file `Owns` column), re-verified against the tree — the ownership set is the `Files:` list at task grain.
+- **(b) Inter-task** — tasks within a COARSE-path run. The run emits the wave grouping and judges disjointness from each task's **owned file set** (its status-file `Owns` column), re-verified against the tree — the ownership set is the `Files:` list at task grain.
 
-Both use the **identical invariants**: children commit on their own branch, the orchestrator integrates the work and runs the full suite on the combined result, ≤4 **implementers** per wave (read-only dispatches are not capped — see check 4), a BLOCKED sibling holds the wave. Only the *evidence* for gate 1 (disjoint files) differs by grain. **Roadmap applies this protocol directly and does NOT load the `implement` skill per task.**
+Both use the **identical invariants**: children commit on their own branch, the orchestrator integrates the work and runs the full suite on the combined result, ≤4 **implementers** per wave (read-only dispatches are not capped — see check 4), a BLOCKED sibling holds the wave. Only the *evidence* for gate 1 (disjoint files) differs by grain. **The COARSE path applies this protocol directly and does NOT dispatch a nested `implement` per task.**
 
 ## When a child gets its own worktree
 
@@ -42,7 +42,7 @@ Also treat the plan's labels as load-bearing data. A `**Parallel:**` line missin
 
 For each declared wave:
 
-**At task grain (roadmap), substitute each task's *owned file set (`Owns` column), re-verified against the tree* for `Files:` in steps 1–2, and skip the `**Parallel:**`-line integrity test below** — roadmap tasks carry no `**Parallel:**` lines. A task whose real edits land outside its `Owns` set breaks the wave's disjointness: treat it as a failed wave and let roadmap merge or re-cut.
+**At task grain (COARSE path), substitute each task's *owned file set (`Owns` column), re-verified against the tree* for `Files:` in steps 1–2, and skip the `**Parallel:**`-line integrity test below** — roadmap tasks carry no `**Parallel:**` lines. A task whose real edits land outside its `Owns` set breaks the wave's disjointness: treat it as a failed wave and let roadmap merge or re-cut.
 
 1. Collect each task's `Files:` list — Create + Modify + Test together.
 2. Compare pairwise. Any shared path fails the wave. Include: shared fixtures, snapshot dirs, `mod.rs` / `__init__.py` / barrel files, route or middleware registration, config, lockfiles, migrations. A shared path is no longer index-corrupting — it is a guaranteed merge conflict, which is wasted work rather than a corrupt commit. Still split it.

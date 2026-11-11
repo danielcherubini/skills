@@ -10,7 +10,7 @@ Turn ideas into designs through collaborative dialogue before writing any code.
 As you discuss, capture decisions and terminology as persistent artifacts:
 - **Decisions** for non-obvious trade-offs (hard-to-reverse, surprising, real alternatives) — written to `docs/decisions/`
 - **CONTEXT.md** for resolved terminology (shared language that compounds across sessions)
-- **Spec** — once the design is approved, the full spec is written to `docs/roadmap/<topic>.md` as a draft (see After Approval), then handed to `specify` (small scope) or `roadmap` (HUGE scope — see After Approval); for small scope there is no "what next" ask
+- **Spec** — once the design is approved, the full spec is written to `docs/roadmap/<topic>.md` as a draft (see After Approval), then handed to `specify` (small scope) or `implement`'s COARSE path (HUGE scope — see After Approval); for small scope there is no "what next" ask
 
 ## Pre-check (run this first, before the design flow)
 
@@ -52,7 +52,7 @@ Before starting the design flow, check `docs/roadmap/<topic>.md` for the current
 
 ## Hard Gate
 
-Do NOT write code, load the `implement` skill (or any implementation skill) until design is approved. This is a hard stop — and it does not lift into a continuation: even after approval, never flow into implementation on your own. After approval the spec is handed to `specify` — or, when HUGE scope, the user is asked once whether to route to `roadmap` (see After Approval). Neither path flows into implementation on its own; the next decision point is `specify`'s HARD BREAK, or `roadmap`'s one-time "Proceed autonomously?" entry confirmation — and only that confirmation (or an explicit user request) ever leads to `implement`.
+Do NOT write code, load the `implement` skill (or any implementation skill) until design is approved. This is a hard stop — and it does not lift into a continuation: even after approval, never flow into implementation on your own. After approval the spec is handed to `specify` — or, when HUGE scope, the user is asked once whether to hand the block to `implement`'s COARSE path (see After Approval). Neither path flows into implementation on its own; the next decision point is `specify`'s HARD BREAK, or `implement`'s one-time consent question (autonomous vs check-in) — and only that confirmation (or an explicit user request) ever leads to implementation work.
 
 ## Process
 
@@ -186,7 +186,7 @@ Once the design is approved by the user, write the complete spec (already presen
 
     - `edit_task(task_id, spec_path: "docs/roadmap/<topic>.md")` — card → file.
     - Add `task: <task_id>` to the spec's own front-matter, beside `issue:` — **file → card, and this
-      is the ONLY way a later skill learns the id.** `specify`, `roadmap` and `finish` are loaded
+      is the ONLY way a later skill learns the id.** `specify`, `implement` and `finish` are loaded
       mid-session, so they never see a `<task>` block; they read this doc, and without the key the
       chain dead-ends exactly where the docs are most destructive (a plan overwriting a spec, a
       deletion on ship). Write it even when the tracker step was skipped.
@@ -241,17 +241,17 @@ Once the design is approved by the user, write the complete spec (already presen
    - Reuse the ticket already tied to this topic (an `issue:` key in the doc's front-matter); otherwise load the `create-jira-ticket` skill (or invoke `atlassian_createJiraIssue` with `contentFormat: "markdown"`) using project routing from `AGENTS.md` / `CLAUDE.md` / `create-jira-ticket`.
    - Post or link the spec description, and write the ticket key or URL into the doc's front-matter as `issue: <key-or-url>`.
 
-2. **Hand off for small scope silently; for HUGE scope ask once (roadmap vs specify).** The spec on disk is a draft; the next skill finalizes it.
+2. **Hand off for small scope silently; for HUGE scope ask once (implement-coarse vs specify).** The spec on disk is a draft; the next skill finalizes it.
 
    **Discriminator** — evaluate scope now: the count of independent design sections/tasks the spec contains, and whether the work fits one PR.
    - **Small scope** — `≤2` items **and** fits one PR **and** no explicit "unattended" intent → hand to `specify` silently (current behavior). **Clear the todo list**, then load the `specify` skill; it reads the draft spec from `docs/roadmap/<topic>.md` (`status: approved`), finalizes it, and its HARD BREAK is where the user decides whether to proceed to `implement`. No "what next" ask. **This silence is deliberate and carries the Approved handoff too:** `specify`'s HARD BREAK asks about moving the card to Approved when it knows a card, so asking here would ask the same question twice.
    - **HUGE scope** — `≥3` items **OR** won't fit one PR / spans sessions **OR** user said "run unattended / do all / across sessions" → one `ask`:
 
      ```
-     ask({ questions: [{ id: "route", question: "This is large enough to split into a tracked multi-task run. Route to roadmap or plan as one shot (specify)?", options: [ { label: "Roadmap — decompose into tasks and run in waves (recommended)" }, { label: "Specify — one plan, one PR" }, { label: "Hold" } ] }] })
+     ask({ questions: [{ id: "route", question: "This is large enough to split into a tracked multi-task run. Decompose and run it as a wave-based run, or plan it as one shot (specify)?", options: [ { label: "Decompose and run in waves — implement's multi-task path (recommended)" }, { label: "Specify — one plan, one PR" }, { label: "Hold" } ] }] })
      ```
 
-     - **Roadmap** → clear the todo list, load the `roadmap` skill (roadmap runs its own entry confirmation).
+     - **Decompose and run in waves** → clear the todo list, load the `implement` skill and pass the approved spec — it takes its **COARSE path** (decompose by owned file set → ground → plan every task via consumed `specify` → waves). It runs its own consent question. **Forward the `<task id="tsk_…">` block verbatim if step 0G found one**, and name the spec path: `implement` is loaded mid-session, never sees the block, and its `task:` key lives in the spec's front-matter.
      - **Specify** → the small-scope handoff above.
      - **Hold** → the spec stays on disk for a later session. **If this run knows a Task
        card** (step 0G found a `<task id="tsk_…">` block), that is exactly the handoff
@@ -293,7 +293,7 @@ If the user explicitly asks to run a reviewer (before the handoff), THEN:
    ```
 
 3. Fix selected issues one at a time, applying each fix to `docs/roadmap/<topic>.md` so the file stays the source of truth. Re-run the reviewer once after all fixes — it reviews the updated file. If the spec was already mirrored to the tracker (step 1b), update the artifact: `gh issue artifact edit <issue-number> <artifact-number> -F docs/roadmap/<topic>.md` (or post a follow-up comment saying it supersedes the earlier one if the comment fallback was used).
-4. After review is complete, hand off per the After Approval discriminator (specify silently for small scope; roadmap for HUGE scope).
+4. After review is complete, hand off per the After Approval discriminator (specify silently for small scope; implement COARSE for HUGE scope).
 
 If the user (before the handoff) asks to revise the design: go back to the discussion process (from the section that needs rework). Once the revised design is approved, update `docs/roadmap/<topic>.md` with the new spec, then hand off per the After Approval discriminator (specify silently for small scope; roadmap for HUGE scope).
 
@@ -301,7 +301,7 @@ If the user wants to stop before the handoff: stop. The spec is saved at `docs/r
 
 ## Principles
 
-- Always use the `ask` tool for every decision point — clarifying questions, approach selection, section approval, and the HUGE-scope roadmap-vs-specify route. The exception is the *small-scope* post-approval handoff: it goes straight to `specify` with no ask — the user's next decision point is `specify`'s HARD BREAK
+- Always use the `ask` tool for every decision point — clarifying questions, approach selection, section approval, and the HUGE-scope decompose-vs-specify route. The exception is the *small-scope* post-approval handoff: it goes straight to `specify` with no ask — the user's next decision point is `specify`'s HARD BREAK
 - One question per `ask` call
 - Never skip ahead to the next section without explicit user approval via `ask`
 - YAGNI — remove unnecessary features

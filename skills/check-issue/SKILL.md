@@ -7,7 +7,7 @@ description: Use when checking the status of a GitHub or Jira issue or ticket �
 
 Report on the **state** of issues. The main agent is a strict orchestrator; every `researcher` subagent investigates one issue and returns a triage report.
 
-> 🚨 **CORE RULE: Triage, not repair.** This skill answers *"what is the state of this issue?"* — never *"how do we fix it?"* Root-causing, code archaeology, and implementation planning belong to `specify` / `implement` / `roadmap`.
+> 🚨 **CORE RULE: Triage, not repair.** This skill answers *"what is the state of this issue?"* — never *"how do we fix it?"* Root-causing, code archaeology, and implementation planning belong to `specify` / `implement`.
 
 ## ⚠️ STRICT RULE: ZERO BASH IN THE MAIN AGENT, NO WRITES WITHOUT AN ASK
 
@@ -23,7 +23,7 @@ Main Agent (orchestrator - no bash; writes only labels, only when asked)
   ├── 1. Dispatch N [researcher: Issue Trier] concurrently ── one issue each
   ├── 2. Merge into one triage table → ask what next
   └── 3. Label (ask → gh label list → propose → ask → [general] apply)
-         or hand off to implement / roadmap / specify
+         or hand off to implement / specify
 ```
 
 ## Parsing the Input
@@ -157,7 +157,7 @@ ask({ questions: [{ id: "next", question: "What should we do with these?",
     { label: "Label them from the triage verdicts" },
     { label: "Implement one — load the implement skill" },
     { label: "Plan one — load the specify skill" },
-    { label: "Decompose the backlog — load the roadmap skill" },
+    { label: "Decompose the backlog and run in waves — load the implement skill" },
     { label: "Close the stale/already-fixed ones (confirm each first)" }
   ] }]});
 ```

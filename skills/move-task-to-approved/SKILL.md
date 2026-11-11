@@ -38,9 +38,10 @@ Say all three parts, in this order, and name the control the way the UI names it
 >    a hover-revealed action). This session's context is done; the card now holds the
 >    spec and plan.
 > 2. **Open the Tasks board** for this Space.
-> 3. **Click the arrow pill on the card** — it shows the next column's name (on a default
->    board, `Doing →`). That click moves the card and starts a **fresh Session** on it,
->    which loads this column's launch Skill and reads the card's artifacts.
+> 3. **Click the arrow pill on the card** — it is labelled with the next column's name,
+>    which you read from `list_board` in step 2 (quote the real label; never guess it).
+>    That click moves the card and starts a **fresh Session** on it, which loads this
+>    column's launch Skill and reads the card's artifacts.
 
 Then stop.
 
@@ -51,11 +52,15 @@ Then stop.
 - **`approved` has no launch Skill on a default board** (`on_enter_skill` is NULL). That
   is what makes it a parking lane: the work starts clean in the new Session, not as a
   continuation of this one.
-- **The pill's label is the DESTINATION column's name, not `Implement`.** Never tell the
-  user to click a button called "Implement" — they will not find it.
-- **Which Skill the new Session loads comes from the destination Stage**, and it varies
-  per Space (on this repo's board `doing` carries `roadmap`). Say "its launch Skill",
-  never name one you have not read.
+- **The pill's label is the DESTINATION column's name — data you read, never a word you
+  hardcode.** A Space owner can rename that column, so `Doing →`, `Implement →` and
+  `WIP →` are each correct on some board. Quote the label `list_board` returned; a
+  guessed name is an instruction the user cannot follow.
+- **Which Skill the new Session loads comes from the destination Stage's
+  `on_enter_skill`**, and it varies per Space and changes without warning. Say "its
+  launch Skill" — never name one you have not read in the stage rows. Renaming a column
+  does **not** change which Skill it launches: `slug` and `label` are separate columns,
+  so a board can read `Implement` while launching any Skill.
 - **Under `board_strict = 1` a move that is not a declared edge refuses**, writing
   nothing. Relay the refusal's allowed list; do not retry with a guessed slug.
 

@@ -6,8 +6,10 @@ context-compacted and knows nothing else. Copy this structure; delete the commen
 ```markdown
 ---
 status: running            # running | done
-mode: autonomous           # autonomous = no mid-loop questions (entry confirmation and the
-                           #   review/finish shipping gates are the documented exceptions)
+mode: autonomous           # autonomous | checkin — the ONE Step 0 consent answer, recorded so a
+                           #   resumed session never re-asks. autonomous = no mid-loop questions
+                           #   (the scope-change gate and the review/finish shipping gates are the
+                           #   documented exceptions); checkin = report each Step 6 gate and wait.
 updated: YYYY-MM-DD
 ---
 
@@ -35,7 +37,7 @@ compaction, so on resume it is always wrong: rebuild it rather than trusting it.
 state — `todo`/`planned`/`vetted` → pending, `implemented` → in-progress (that row is the mid-implementation
 signal the paragraph above just established), `done` → complete.
 
-Loop protocol — the run's phases, in order (mirrors `skills/roadmap/SKILL.md` Steps 0–8; a resumed run starts at the
+Loop protocol — the run's phases, in order (mirrors `skills/implement/SKILL.md` COARSE Steps 0–8; a resumed run starts at the
 first step whose output is missing, never re-dispatches a step whose output already exists):
 1. **Decompose & branch** (Step 0): tasks drafted, areas assigned, feature branch exists, session list built. Skip
    if the Tasks table already has rows.
@@ -57,7 +59,7 @@ first step whose output is missing, never re-dispatches a step whose output alre
 9. **Ship** (Step 8): when no row reads `todo`, `planned`, `vetted` or `implemented`, run `review`, then `finish`.
    Clear the session list after the follow-ups are folded.
 
-Steps 1–9 are the roadmap skill's Steps 0–8, same order, same meaning.
+Steps 1–9 are the COARSE path Steps 0–8, same order, same meaning.
 
 
 ## Gate — establish before task 1, re-run after every wave (and after each serial task)

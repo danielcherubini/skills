@@ -11,14 +11,16 @@ This pipeline was built around one belief: **you should be able to run small, op
 The trick is structure. If you break work into the right stages, each one produces artifacts precise enough that any capable model — even a small one — can execute its part without guessing. No chain-of-thought fluff, no vague prompts, no context bleed between tasks.
 
 ```
-Small scope: entry → specify → implement → review → finish
-Large scope: entry → roadmap ( ground → plan every task → vet → implement one wave at a time → gate → fix ) → review → finish
+One plan:  entry → specify → implement (LIGHT) → review → finish
+Many tasks: entry → implement (COARSE: decompose → ground → plan every task → vet
+                       → one wave at a time → gate → fix) → review → finish
 ```
 
+`implement` is one skill with two paths that share every execution primitive — branch setup, baseline, dispatch, wave protocol, gate, review/PR/finish. They differ in **memory and autonomy**, not mechanics.
+
 - **discuss** — collaborative design dialogue. Produces an approved spec with clear terminology, trade-offs, and acceptance criteria, written to `docs/roadmap/`.
-- **roadmap** — (large scope only) decomposes an approved block into N tasks, computes a dependency graph, groups them into waves on one branch, and runs autonomously. Drives `specify` in consumed mode per task.
-- **specify** — turns the spec (or one roadmap task) into independent, commitable tasks. Each task is self-contained: exact file paths, function names, test commands. Written for a context-free agent.
-- **implement** — executes the plan task by task. Subagents get one task each, run TDD, commit, report done.
+- **specify** — turns the spec (or one COARSE task) into independent, commitable tasks. Each task is self-contained: exact file paths, function names, test commands. Written for a context-free agent.
+- **implement** — executes the work. **LIGHT path:** one plan, todo list as memory, per-task supervision. **COARSE path:** decomposes an approved block into N tasks by **owned file set** so waves are genuinely parallel, builds the dependency graph, drives `specify` in consumed mode per task, keeps a status file as memory, and runs on one consent answer.
 - **finish** — checks reviews and CI, fixes issues, merges, syncs main.
 
 The result: you can one-shot any task no matter how complex, just by running it through the pipeline. Small models handle the execution. You handle the design.
@@ -31,23 +33,24 @@ The [research](research/) and [review](review/) skills are pluggable gates you c
 
 ## Entry routing
 
-Which skill the pipeline starts from — and whether it routes to `roadmap` or straight to `specify`:
+Which skill the pipeline starts from — and whether it routes to `implement`'s COARSE path or straight to `specify`:
 
 | Entry | Default target | Ask? |
 |-------|----------------|------|
-| **codebase-improvement** | → `roadmap` | never — an approved audit backlog is inherently multi-task |
+| **codebase-improvement** | → `implement` COARSE | never — an approved audit backlog is inherently multi-task |
 | **discuss** | → `specify` | only when HUGE: ≥3 independent items, or won't fit one PR / spans sessions |
-| **research** | → nothing (informs a decision) | only if findings imply multiple implementation tracks → offer roadmap |
-| **any** + "run unattended / do all these / keep going across sessions" | → `roadmap` | no ask — explicit override |
+| **research** | → nothing (informs a decision) | only if findings imply multiple implementation tracks → offer the COARSE path |
+| **any** + "run unattended / do all these / keep going across sessions" | → `implement` COARSE | no ask — explicit override |
+
+`implement` itself asks exactly **one** consent question per run — autonomous vs check-in after every wave (COARSE), or which plan to execute (LIGHT).
 
 ## Development Workflow
 
 | Skill | Trigger | What it does |
 |-------|---------|--------------|
 | [discuss](discuss/) | "let's discuss", "lets brainstorm" | Collaborative design dialogue before coding. Establishes shared terminology, proposes approaches with trade-offs, captures ADRs and glossary terms, writes the approved spec to `docs/roadmap/`. Hard gate — no code until design is approved. |
-| [specify](specify/) | After design approval | Turns an approved design into a structured implementation plan with independent, commitable tasks. Writes to `docs/roadmap/` (or to the per-task `target:` in consumed mode). Grounds the plan before writing, then vets it against the actual codebase. As a consumed-mode child (`researcher`) it grounds inline and dispatches nothing — `roadmap` runs the grounding researcher and reviewer for it. |
-| [roadmap](roadmap/) | "work through all of these", "do this autonomously", "break this into tasks", "keep going across sessions" | Coarse-grain driver: partitions an approved block into tasks by **owned file set** so waves are genuinely parallel, builds the dependency graph, runs autonomously on one branch (status file = memory) — grounds once per area to disk, fans planning out wide, implements in waves. |
-| [implement](implement/) | After plan is ready | Executes the plan: creates feature branch, runs baseline checks, dispatches subagents per task, handles reviews, opens PRs. |
+| [specify](specify/) | After design approval | Turns an approved design into a structured implementation plan with independent, commitable tasks. Writes to `docs/roadmap/` (or to the per-task `target:` in consumed mode). Grounds the plan before writing, then vets it against the actual codebase. As a consumed-mode child (`researcher`) it grounds inline and dispatches nothing — `implement`'s COARSE path runs the grounding researcher and reviewer for it. |
+| [implement](implement/) | After plan is ready · a ticket key · "work through all of these", "do this autonomously", "break this into tasks", "keep going across sessions" | Executes the work on one of two paths. **LIGHT:** one plan (or a Task card's `plan` artifact, or a Jira ticket) — branch, baseline, dispatch per task, gate, review, PR. **COARSE:** an approved block of N≥2 tasks — partition by **owned file set** so waves are genuinely parallel, dependency graph, ground once per area to disk, fan planning out wide, implement in waves on one branch (status file = memory), one consent answer then autonomous. |
 | [finish](finish/) | "merge this", "ship it", "finish up" | Completes the plan lifecycle: checks reviews and CI, fixes issues, merges the PR, syncs local main, deletes the whole `docs/roadmap/<feature>-*` family (history lives in git). |
 
 ## Quality and Debugging
@@ -96,8 +99,9 @@ Which skill the pipeline starts from — and whether it routes to `roadmap` or s
 2. **Manual reference** — You can explicitly ask the agent to use a skill by name
 3. **Chaining** — Skills naturally flow into each other:
    ```
-   Small scope: entry → specify → implement → review → finish
-   Large scope: entry → roadmap ( ground → plan every task → vet → implement one wave at a time → gate → fix ) → review → finish
+   One plan:   entry → specify → implement (LIGHT) → review → finish
+   Many tasks: entry → implement (COARSE: decompose → ground → plan every task → vet
+                   → one wave at a time → gate → fix) → review → finish
    ```
 
 ## Adding New Skills

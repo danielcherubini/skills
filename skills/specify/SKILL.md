@@ -257,7 +257,34 @@ Fix issues (max 3 rounds).
 
 1. **Clear the todo list** — use `manage_todo_list` to remove all entries now that planning is complete.
 2. Tell the user the plan is ready (path + one-line summary).
-3. Get explicit confirmation with the `ask` tool:
+3. Get explicit confirmation with the `ask` tool. **The question depends on whether this
+   run knows a Task card** — the plan's front-matter `task:` key, or a `<task id="tsk_…">`
+   block forwarded by the calling skill.
+
+   **With a Task card** — the handoff replaces "implement now", so load
+   `move-task-to-approved` and ask:
+
+   ```
+   ask({
+     questions: [{
+       id: "move-to-approved",
+       question: "The plan is ready at docs/roadmap/<topic>.md and mirrored to the card. Move the card to Approved and hand implementation to a fresh Session?",
+       options: [
+         { label: "Move to Approved — I'll archive this session and launch from the board (recommended)" },
+         { label: "No — keep the card where it is" },
+         { label: "Revise the plan first" }
+       ]
+     }]
+   })
+   ```
+
+   On **Move to Approved**: that skill attaches the artifacts, reads the Approved slug off
+   `list_board`, moves the card, verifies with `get_task`, then tells the user to archive
+   this session and click the card's arrow pill on the Tasks board. **Then stop — do not
+   load `implement`.** The whole point is that implementation happens in a fresh Session
+   with the card's artifacts, not in this session's leftover context.
+
+   **Without a Task card** — nothing to move, so keep the old question:
 
    ```
    ask({
@@ -273,7 +300,10 @@ Fix issues (max 3 rounds).
    })
    ```
 
-4. **Only if the user explicitly confirms**, load the `implement` skill. Otherwise stop and wait for the user to decide. Do NOT load `implement` or do any implementation work without that explicit confirmation.
+4. **Only if the user explicitly confirms implementation**, load the `implement` skill.
+   Otherwise stop and wait for the user to decide. Do NOT load `implement` or do any
+   implementation work without that explicit confirmation — and note that on the
+   card-backed path no answer routes here, because the board launch does instead.
 
 ## Common Mistakes
 

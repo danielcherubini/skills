@@ -244,7 +244,7 @@ Once the design is approved by the user, write the complete spec (already presen
 2. **Hand off for small scope silently; for HUGE scope ask once (roadmap vs specify).** The spec on disk is a draft; the next skill finalizes it.
 
    **Discriminator** — evaluate scope now: the count of independent design sections/tasks the spec contains, and whether the work fits one PR.
-   - **Small scope** — `≤2` items **and** fits one PR **and** no explicit "unattended" intent → hand to `specify` silently (current behavior). **Clear the todo list**, then load the `specify` skill; it reads the draft spec from `docs/roadmap/<topic>.md` (`status: approved`), finalizes it, and its HARD BREAK is where the user decides whether to proceed to `implement`. No "what next" ask.
+   - **Small scope** — `≤2` items **and** fits one PR **and** no explicit "unattended" intent → hand to `specify` silently (current behavior). **Clear the todo list**, then load the `specify` skill; it reads the draft spec from `docs/roadmap/<topic>.md` (`status: approved`), finalizes it, and its HARD BREAK is where the user decides whether to proceed to `implement`. No "what next" ask. **This silence is deliberate and carries the Approved handoff too:** `specify`'s HARD BREAK asks about moving the card to Approved when it knows a card, so asking here would ask the same question twice.
    - **HUGE scope** — `≥3` items **OR** won't fit one PR / spans sessions **OR** user said "run unattended / do all / across sessions" → one `ask`:
 
      ```
@@ -253,7 +253,17 @@ Once the design is approved by the user, write the complete spec (already presen
 
      - **Roadmap** → clear the todo list, load the `roadmap` skill (roadmap runs its own entry confirmation).
      - **Specify** → the small-scope handoff above.
-     - **Hold** → stop; the spec stays on disk for a later session.
+     - **Hold** → the spec stays on disk for a later session. **If this run knows a Task
+       card** (step 0G found a `<task id="tsk_…">` block), that is exactly the handoff
+       `move-task-to-approved` exists for — offer it via `ask` before stopping:
+
+       ```
+       ask({ questions: [{ id: "move-to-approved", question: "Hold here, or move the card to Approved so a fresh Session can pick it up from the board?", options: [ { label: "Move to Approved — I'll archive this session and launch from the board (recommended)" }, { label: "Just hold — leave the card where it is" } ] }] })
+       ```
+
+       On Move to Approved, follow that skill (attach artifacts → read the Approved slug
+       off `list_board` → `move_task` → verify → tell the user to archive this session and
+       click the card's arrow pill on the Tasks board), then stop. No card → just stop.
 
 If the user explicitly asks to run a reviewer (before the handoff), THEN:
 1. Dispatch the **reviewer subagent** — the reviewer reads the spec from the file:

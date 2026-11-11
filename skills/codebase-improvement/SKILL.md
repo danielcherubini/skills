@@ -41,7 +41,12 @@ Main agent (YOU — running this skill)
 Read project context to ground the analysis:
 
 1. **`CONTEXT.md`** — domain glossary + engineering rules section (see CONTEXT.md Extension below). If missing, use all defaults and note in report.
-2. **`docs/adr/`** — read all ADRs (cap: 20 by mtime). If directory missing, skip silently and note in report.
+2. **The ADR directory** — read all ADRs (cap: 20 by mtime). Use `docs/decisions/` if it exists, else
+   `docs/adr/`, else whichever the repo's own AGENTS.md/CLAUDE.md names. **Read BOTH when both exist** — the
+   `discuss` skill writes to `docs/decisions/` and this skill historically wrote to `docs/adr/`, so a repo can
+   hold decisions in either place. If every candidate is missing, skip silently and note in report. **Name the
+   one you read from `<ADR_DIR>` here, once** — Phase 5 writes new ADRs to `<ADR_DIR>`, and writing NEW ADRs
+   anywhere else starts a second directory that the next audit's step 2 will not read.
 3. **`docs/roadmap/`** — read the 10 most recent roadmap docs by file modification time. If directory missing, skip silently and note in report.
 
 ### Phase 2: Scan (follow the research skill's dispatch pattern)
@@ -133,7 +138,7 @@ ask({
 |--------|--------|
 | **Approve** | Add to implementation backlog |
 | **Research more** | Dispatch a targeted research subagent scoped to this finding's open questions. Re-present the same 4 options. **Cap: 2 research rounds per finding**, then force Approve/Dismiss/Defer. |
-| **Dismiss** | Skip. If the reason is load-bearing (not "not now" or "too hard"), offer: *"Want me to record this as an ADR so future audits don't re-suggest it?"* If agreed, write to `docs/adr/NNNN-slug.md` following the discuss skill's ADR format. |
+| **Dismiss** | Skip. If the reason is load-bearing (not "not now" or "too hard"), offer: *"Want me to record this as an ADR so future audits don't re-suggest it?"* If agreed, write to `<ADR_DIR>/NNNN-slug.md` — `<ADR_DIR>` was named in Phase 1 step 2 (in most repos `docs/decisions/`) — following the discuss skill's ADR format. |
 | **Defer** | Move to a "Needs Decision" list. Revisit all deferred findings at the end of Phase 5. |
 
 After all findings discussed, present the approved backlog + any remaining deferred items.
@@ -154,7 +159,7 @@ ask({
 })
 ```
 
-- **Decompose into roadmap** → Clear todo list, load the `roadmap` skill and pass the approved backlog (roadmap runs its own entry confirmation). An audit backlog is inherently multi-task, so this is the default — it needs no extra confirmation beyond this menu. (This deliberately differs from `discuss`, which routes small single-design work straight to `specify`.)
+- **Decompose into roadmap** → Clear todo list, load the `roadmap` skill and pass the approved backlog (roadmap runs its own entry confirmation). **Pass the Task card id too, if this audit was launched from a card** — `roadmap` is loaded mid-session, never sees the `<task>` block, and its own mirrors (status file → card) dead-end without it. Pass the `<task id="tsk_…">` block verbatim, or the id if that is all you have. An audit backlog is inherently multi-task, so this is the default — it needs no extra confirmation beyond this menu. (This deliberately differs from `discuss`, which routes small single-design work straight to `specify`.)
 - **Save for later** → Report already saved in `docs/reviews/`
 - **Revise findings** → Return to Phase 2 with refined angles
 
@@ -221,14 +226,14 @@ The skill loads these and applies them alongside the default lenses. When the di
 
 - **Before scanning:** Read existing ADRs to know what not to re-suggest
 - **During discuss:** If a finding contradicts an ADR, only surface it when friction is real enough to warrant reopening. Mark clearly: *"contradicts ADR-0007 — but worth reopening because..."*
-- **After dismiss:** If the user dismisses with a load-bearing reason, offer: *"Want me to record this as an ADR so future audits don't re-suggest it?"* If agreed, write to `docs/adr/NNNN-slug.md` following the discuss skill's ADR format.
+- **After dismiss:** If the user dismisses with a load-bearing reason, offer: *"Want me to record this as an ADR so future audits don't re-suggest it?"* If agreed, write to `<ADR_DIR>/NNNN-slug.md` (Phase 1 step 2) following the discuss skill's ADR format.
 
 ## Edge Cases
 
 | Situation | Behavior |
 |-----------|----------|
 | No `CONTEXT.md` | Use all defaults. Note "not found, defaults applied" in report. |
-| No `docs/adr/` | Skip silently. Note "none" in report. |
+| No ADR directory at all (neither `docs/decisions/` nor `docs/adr/`) | Skip silently. Note "none" in report. |
 | No `docs/roadmap/` | Skip silently. Note "none" in report. |
 | Empty / trivial codebase (< 5 source files) | Write report with "No meaningful findings." Skip Phase 5. Offer Phase 6. |
 | Zero findings after scan | Write report with "No findings." Skip Phase 5. Phase 6 offers "Save for later" only. |

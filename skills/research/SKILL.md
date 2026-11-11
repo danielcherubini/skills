@@ -88,6 +88,7 @@ Each parallel subagent gets **one specific angle**. Good angles are:
 1. **Research type:** web, code, academic, video, or hybrid
 2. **Depth:** quick / standard / deep → determines number of angles
 3. **Design angles:** define 1-6 specific, non-overlapping research angles
+4. **Task card:** if your input carries a `<task id="tsk_…" stage="…">` block, note the id — that block is the only place it appears (normally your first user message). Phase 5 needs it. No block → no card, skip the card steps.
 
 Consult strategy guides as needed:
 - [Web Research](strategies/strategy-web-research.md)
@@ -192,12 +193,12 @@ After calling ask(), **stop**. Wait for the response.
 
 | User Choice | Action |
 |-------------|--------|
-| Write report to disk | Write the final structured report to a `.md` file on disk using `write`. Use a descriptive filename under `docs/research/` (e.g. `docs/research/vllm-speculative-decoding.md`). Include front-matter (see below). **Do NOT re-print the report to chat — the draft was already shown at Phase 4.5.** |
-| Discuss findings | Load the `discuss` skill, passing the research findings as context. Paste the key findings into the discussion so the agent can use the evidence to inform design decisions. The discussion picks up where research left off. |
+| Write report to disk | Write the final structured report to a `.md` file on disk using `write`. Use a descriptive filename under `docs/research/` (e.g. `docs/research/vllm-speculative-decoding.md`). Include front-matter (see below). **Do NOT re-print the report to chat — the draft was already shown at Phase 4.5.** **THEN, if Phase 1 step 4 found a `<task id="tsk_…">` block, attach it: `write_artifact(task_id, key: "research", markdown: <the file contents you just wrote>)`.** A key is `[a-z0-9][a-z0-9-]{0,39}`, ≤40 chars, and the markdown is capped at 256 KiB (a refusal writes nothing). It UPSERTS, so re-attach after any revision. If there is no `write_artifact` tool — this skill is global, most projects have no Task board — say so in one sentence and carry on; do not emulate it with another file. **Why:** the file is the working copy and the artifact is the copy a later Session on this card, or on another machine, can actually read. |
+| Discuss findings | Load the `discuss` skill, passing the research findings as context. Paste the key findings into the discussion so the agent can use the evidence to inform design decisions. **Also paste the `<task id="tsk_…">` block verbatim if Phase 1 step 4 found one** — `discuss` reads the card id ONLY from that block, and when it is loaded mid-session it will not find one, so an unforwarded id means its After-Approval step 1a silently never runs and the spec it writes lands with no durable copy. The discussion picks up where research left off. |
 | Targeted deep-dive | Dispatch more researcher subagents on specific gaps, re-synthesise |
 | Add dimension | Dispatch new angle, re-synthesise |
 | Reframe | Return to Phase 1 with revised question |
-| Roadmap | When (and only when) the findings imply multiple separate implementation tracks: load the `roadmap` skill, passing those tracks as the approved block. (If combined with "Write report to disk" via multi-select, write the report first, then load roadmap.) This does not change research's default — deliver-only stays the default. |
+| Roadmap | When (and only when) the findings imply multiple separate implementation tracks: load the `roadmap` skill, passing those tracks as the approved block — **and the `<task id="tsk_…">` block verbatim if Phase 1 step 4 found one**, since `roadmap` is loaded mid-session, never sees that block, and has no spec doc of its own to read an id from when the entry is `research`. (If combined with "Write report to disk" via multi-select, write the report first, then load roadmap.) This does not change research's default — deliver-only stays the default. |
 
 Final report format (always include front-matter):
 

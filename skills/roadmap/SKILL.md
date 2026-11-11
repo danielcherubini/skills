@@ -30,10 +30,13 @@ The approved block arrives from an entry skill. Know which one, and what to read
 
 - **codebase-improvement** → the approved report in `docs/reviews/`. (Always routes here — an audit backlog
   is inherently multi-task.)
-- **discuss** → the spec at `docs/roadmap/<topic>.md` (`status: approved`) plus its `issue:` key. **Do NOT
+- **discuss** → the spec at `docs/roadmap/<topic>.md` (`status: approved`) plus its `issue:` **and `task:`**
+  front-matter keys — `task:` is the Task board card id and, since you are loaded mid-session, the only
+  place you can get it (you never see the `<task>` block). Absent key → no card; skip every card step.
+  **Do NOT
   flip the spec's `status: approved` to `committed`** — `implement` treats `status: committed` as an
   executable plan, so flipping it would offer a task-list-less spec as a plan. Leave it `approved`; the
-  existence of `<feature>-status.md` (this skill's memory) is what marks the run in progress.
+  existence of `<feature>-status.md` (this memory) is what marks the run in progress.
 - **research** → its report in `docs/research/`.
 
 Then:
@@ -191,6 +194,21 @@ size it by what a planner needs to read. Re-ground only when the tree has moved 
   `discuss`'s step 1b / `specify`'s mirror step) — the plan comment is written once here, since consumed mode
   cannot. No spec doc / no `issue:` key (the `codebase-improvement` and `research` entries) → there is nothing to
   mirror to: say so once and continue. No tracker / no `gh` → same. This never gates the run.
+- **Mirror the status file to the Task card** — the card id comes from EITHER the spec's `task:`
+  front-matter key OR the entry skill's handoff (an audit or research entry has no spec doc, so the id
+  can only arrive in the invocation text). If it was launched from a card and you hold no id, ask once.
+  With an id, after writing the status file — and again whenever the run's shape changes, a wave resolving
+  or a task going `blocked` — call
+  `write_artifact(task_id, key: "status", markdown: <the status file's contents>)`. It UPSERTS, so refreshing
+  is the intended use. **`status` is the ONLY key this step writes.** The task breakdown in the bullet above
+  goes to the TRACKER as an issue comment and never to the card — there is no `comment` artifact key. No id,
+  or no `write_artifact` tool → say so once and continue; never emulate an artifact with a file.
+
+  **This is not a courtesy copy.** The status file is this run's *only memory*. Check whether its path is
+  gitignored (`git check-ignore -q docs/roadmap/<feature>-status.md`); if it is, the "Commit it and the grounding
+  reports by pathspec" step above does not just skip, it **fails** — `git commit -- <path>` on an untracked
+  ignored file answers *"pathspec … did not match any file(s) known to git"* — and the artifact is then the sole
+  durable copy of the dependency graph, the `Owns` sets and the per-task Status rows.
 
 ### Verification against the tree
 

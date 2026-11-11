@@ -181,6 +181,35 @@ No task worktrees → say so in one line and continue. This never gates the merg
 Delete the whole feature roadmap family (plan/spec, status, task plans, follow-ups — history lives in git).
 **Fold any `${FEATURE_NAME}-follow-ups.md` content into `docs/features/` or an ADR FIRST** — it is deleted here too.
 
+**"History lives in git" is an assumption, and when it is false this step destroys the work unrecoverably.** In
+any repo where `docs/roadmap/` is gitignored, these files were never committed, so `rm -f` leaves no blob, no
+stash, no `git checkout` — and `git add -u` then stages nothing, so the destruction is not even visible in the
+diff. So before the loop, for every file the loop will touch, require ONE survivor:
+
+1. `git ls-files --error-unmatch "$f"` succeeds — git holds it, so it is safe to delete. **Or**
+2. Its content was already FOLDED into a durable file by the fold this step requires first
+   (`docs/features/<feature>.md` or an ADR). Prove it: `git check-ignore -q <fold target>` must report NOT
+   ignored, and you must have staged it yourself with `git add -- <fold target>` — the commit below runs
+   `git add -u -- docs/roadmap`, which stages **deletions in one directory only** and can never stage a new
+   file elsewhere, so an unstaged fold is as good as absent. This is the survivor for `-follow-ups.md`; do not
+   ALSO demand an artifact for that file, since no skill writes one and insisting blocks a clean ship. **Or**
+3. The Task card holds it as a **Task artifact** — read the card's key list (`list_board` prints each card's
+   artifact keys) and require the file's role: `spec`/`plan` for the spec-or-plan doc, `status` for
+   `-status.md`.
+
+Grounding reports and per-task plans are run scaffolding: no survivor needed, delete them unconditionally.
+
+None of the three? **Stop and say which file has no copy**, and delete only the ones that do. Do not "proceed because the
+PR is merged": the merge proves the code shipped, which says nothing about whether the *documents* survive. No
+`task:` key in the spec's front-matter and no tracker `issue:` key either → the run was never mirrored anywhere,
+so say so plainly and leave the family in place; it is the only copy.
+
+After the deletions, if the spec's front-matter carries `task:`, re-point the card so it stops naming a deleted
+file: `edit_task(task_id, spec_path: "docs/features/<feature>.md")` — the durable doc you folded above. This is
+the only move available and it is the right one: `edit_task` **cannot** null a `spec_path` out (the UPDATE is
+`COALESCE(?4, spec_path)`, so `null` means "leave it alone", not "clear it"), which means a card whose spec file
+was deleted would keep pointing at it forever unless you re-point it at something that exists.
+
 ```bash
 # Derive from CURRENT_BRANCH (captured at step 0) — NOT `git branch --show-current`, which by now
 # returns `main` because step 4 already checked it out. An empty value must abort, never glob.

@@ -72,6 +72,8 @@ Before discussing design, establish shared language. This prevents the whole con
 
 **F. Capture terms inline** — When a term is resolved, offer to add it to `CONTEXT.md` right then (see Terminology Check below). Don't wait until the end.
 
+**G. Note the Task card, if there is one** — A card session carries a `<task id="tsk_…" stage="…">` block, and that block is the only place the card's id appears. It normally arrives in your first user message (the board's launch button emits it); when another skill loads `discuss` mid-session it must forward the block, so also accept one pasted into the context you were handed. Keep the id — step 1a of After Approval needs it. **No block anywhere in your input → this is not a card session; skip every Task-board step in this skill.** If you were clearly asked to work a named card but hold no block, ask for its id rather than guessing — `write_artifact` refuses a dangling id and there is no fuzzy lookup to fall back on.
+
 > Only proceed to step 1 once terminology is settled. If the discussion itself reveals new terms or ambiguities, loop back.
 
 ### 1. Explore context — check files, docs, recent commits
@@ -148,18 +150,55 @@ If neither an ADR nor a terminology resolution applies, just move to the next se
 
 ## After Approval
 
-Once the design is approved by the user, write the complete spec (already presented in step 6) to disk. The spec becomes a persistent artifact — the reviewer, the planner, and future sessions all work from the file, not from conversation memory.
+Once the design is approved by the user, write the complete spec (already presented in step 6) to disk. The spec becomes the persistent record the reviewer, the planner, and future sessions work from, not conversation memory — but on a machine where `docs/roadmap/` is gitignored, the file alone is NOT durable, which is why step 1a exists.
 
 1. Write the spec to `docs/roadmap/<topic>.md` (kebab-case) with front-matter:
    ```yaml
    ---
    status: approved
    done-when: <observable exit condition — what does "shipped" look like?>
+   task: <the id from the <task> block — OMIT the key entirely if step 0G found no card>
    ---
    ```
    If `docs/roadmap/<topic>.md` already exists, read it first. If its front-matter says `status: committed` (an in-flight plan), gate with `ask` before overwriting — confirm the replacement or use a different topic filename. Otherwise (an earlier spec), mention what you're replacing.
-   Check if the roadmap path is gitignored (`git check-ignore -q docs/roadmap/<topic>.md`). If it is NOT gitignored, commit the roadmap doc (`git add docs/roadmap/<topic>.md && git commit -m "docs: add <topic> spec"`) so the spec version is preserved in git history before the plan replaces it. **Never use `git add -f`** if the directory is gitignored.
+   Check if the roadmap path is gitignored (`git check-ignore -q docs/roadmap/<topic>.md`). If it is NOT gitignored, commit the roadmap doc (`git add docs/roadmap/<topic>.md && git commit -m "docs: add <topic> spec"`) so the spec version is preserved in git history before the plan replaces it. **Never use `git add -f`** if the directory is gitignored — and when it IS gitignored, accept what that means rather than working around it: step 1a is then the ONLY durable copy of this spec, so run it even if you skip everything else below.
    The roadmap doc is the spec. No separate *local* index. On ship: fold durable content into `docs/features/` (or a new decision) and delete the roadmap doc.
+
+1a. **Attach every durable document this run produced to the Task card.** Run this BEFORE 1b.
+
+    Do it whenever step 0G found a `<task id="tsk_…">` block, and **do not gate it on an `ask`** —
+    unlike 1b, nothing leaves the machine: 1b publishes to a tracker, this writes to the card that
+    started this session. Skipping it is what makes the step-1 promise above false.
+
+    For each document this run wrote — the spec, every ADR, anything folded into `docs/features/`:
+
+    ```
+    write_artifact(task_id: "<the id from the <task> block>", key: "<key>", markdown: "<full file contents>")
+    ```
+
+    Keys: `spec` for the spec, `adr-<number>` for each ADR (e.g. `adr-0101`), `research` for a
+    research report, `<topic>` for a `docs/features/` closeout. A key is `[a-z0-9][a-z0-9-]{0,39}`
+    — lowercase, digits, hyphens, ≤40 chars, never a path, never a dot. Markdown is capped at
+    256 KiB and a refusal writes nothing. The call UPSERTS, so re-running after a revision is safe
+    and is the correct response to a reviewer's fix.
+
+    Then point the card at the file two ways, because each half is read from the other side:
+
+    - `edit_task(task_id, spec_path: "docs/roadmap/<topic>.md")` — card → file.
+    - Add `task: <task_id>` to the spec's own front-matter, beside `issue:` — **file → card, and this
+      is the ONLY way a later skill learns the id.** `specify`, `roadmap` and `finish` are loaded
+      mid-session, so they never see a `<task>` block; they read this doc, and without the key the
+      chain dead-ends exactly where the docs are most destructive (a plan overwriting a spec, a
+      deletion on ship). Write it even when the tracker step was skipped.
+
+    **Why this exists, in one line:** `docs/roadmap/` is gitignored in repos that have a Task board,
+    so step 1's git-guard sends the spec down the "do not force-commit" branch and the spec ends the
+    run with **no durable copy at all** — no commit, no stash, no dangling blob, and the `finish`
+    skill deletes the file on ship (ADR 0100). The artifact is the copy that survives; the file is
+    the working copy.
+
+    **If there is no `write_artifact` tool** (this skill is global — plenty of projects have no Task
+    board), say so in one sentence and continue. Do not emulate it by writing a file elsewhere.
 
 1b. **Ask to mirror the spec to the issue tracker.**
    If no tracker was found in **Which tracker?**, skip this step.
@@ -248,7 +287,7 @@ If the user explicitly asks to run a reviewer (before the handoff), THEN:
 
 If the user (before the handoff) asks to revise the design: go back to the discussion process (from the section that needs rework). Once the revised design is approved, update `docs/roadmap/<topic>.md` with the new spec, then hand off per the After Approval discriminator (specify silently for small scope; roadmap for HUGE scope).
 
-If the user wants to stop before the handoff: stop. The spec is saved at `docs/roadmap/<topic>.md` and can be picked up in a later session — the pre-check's spec branch will offer the plan step then.
+If the user wants to stop before the handoff: stop. The spec is saved at `docs/roadmap/<topic>.md` and can be picked up in a later session — the pre-check's spec branch will offer the plan step then. **But a later session on another machine, or after `finish` deletes the roadmap family, reads only what step 1a attached** — so if you are stopping here and 1a has not run, run it before you stop. Stopping early is not a reason to leave the only copy on one disk.
 
 ## Principles
 

@@ -48,7 +48,7 @@ Main Agent (Finish Orchestrator)
 - After `implement` has opened a PR, or after a review loop is clean
 
 **Don't use when:**
-- Design isn't approved yet — use `discuss`
+- Design isn't approved yet — use `research` (its Path B)
 - Work is incomplete — finish implementation first
 
 ---
@@ -324,7 +324,7 @@ if ! git diff --cached --quiet; then
 fi
 ```
 
-The glob names each roadmap artifact explicitly and **always prefixed by `${FEATURE_NAME}`** (`<feature>.md`, `-status`, `-follow-ups`, `-ground-<area>`, `-taskNN`), so a sibling like `user-auth-v2.md` — or an unrelated `play-ground-refactor.md` — is never touched and the glob can never widen to `docs/roadmap/*.md`. If `docs/roadmap/<feature>.md` does not exist (a roadmap run whose entry was `codebase-improvement` or `research` has no spec file), the matching entries are simply skipped.
+The glob names each roadmap artifact explicitly and **always prefixed by `${FEATURE_NAME}`** (`<feature>.md`, `-status`, `-follow-ups`, `-ground-<area>`, `-taskNN`), so a sibling like `user-auth-v2.md` — or an unrelated `play-ground-refactor.md` — is never touched and the glob can never widen to `docs/roadmap/*.md`. If `docs/roadmap/<feature>.md` does not exist (a COARSE run whose entry was `codebase-improvement`, or `research` Path A with no parent doc written, has no such file), the matching entries are simply skipped — the glob is a candidate list, not a checklist.
 
 If the plan contained durable architectural decisions, fold them into `docs/features/<feature>.md` or `docs/decisions/` before deleting.
 

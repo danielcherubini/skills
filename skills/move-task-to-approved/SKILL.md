@@ -1,6 +1,6 @@
 ---
 name: move-task-to-approved
-description: Use at the end of discuss, specify, or research when the work was produced from a Task board card and the session is finished — offers to move the card to the Approved lane and hand implementation to a fresh Session instead of continuing in this one. Triggered by "move it to approved", "hand it off", "we're done here then what", or by the terminal ask of one of those skills when a `<task id="tsk_…">` block was seen.
+description: Use at the end of research, specify, or implement when the work was produced from a Task board card and the session is finished — offers to move the card to the Approved lane and hand implementation to a fresh Session instead of continuing in this one. Triggered by "move it to approved", "hand it off", "we're done here then what", or by the terminal ask of one of those skills when a `<task id="tsk_…">` block was seen.
 ---
 
 # Move a task to Approved and hand off

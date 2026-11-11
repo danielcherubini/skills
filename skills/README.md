@@ -18,8 +18,8 @@ Many tasks: entry → implement (COARSE: decompose → ground → plan every tas
 
 `implement` is one skill with two paths that share every execution primitive — branch setup, baseline, dispatch, wave protocol, gate, review/PR/finish. They differ in **memory and autonomy**, not mechanics.
 
-- **discuss** — collaborative design dialogue. Produces an approved spec with clear terminology, trade-offs, and acceptance criteria, written to `docs/roadmap/`.
-- **specify** — turns the spec (or one COARSE task) into independent, commitable tasks. Each task is self-contained: exact file paths, function names, test commands. Written for a context-free agent.
+- **research** — the front of the pipeline, on two paths. **Path A** gathers evidence (parallel researcher subagents, cited findings). **Path B** is collaborative design dialogue — settle the terminology, propose approaches with trade-offs, capture ADRs and glossary terms. Both ask what you actually mean *before* working, and neither writes the doc: `specify` does.
+- **specify** — the sole writer of `docs/roadmap/<topic>.md`: the spec (WHAT/WHY) and the plan (HOW-IN-ORDER) in one pass. Each task is self-contained: exact file paths, function names, test commands. Written for a context-free agent, and it seeks waves rather than defaulting to serial.
 - **implement** — executes the work. **LIGHT path:** one plan, todo list as memory, per-task supervision. **COARSE path:** decomposes an approved block into N tasks by **owned file set** so waves are genuinely parallel, builds the dependency graph, drives `specify` in consumed mode per task, keeps a status file as memory, and runs on one consent answer.
 - **finish** — checks reviews and CI, fixes issues, merges, syncs main.
 
@@ -38,8 +38,8 @@ Which skill the pipeline starts from — and whether it routes to `implement`'s 
 | Entry | Default target | Ask? |
 |-------|----------------|------|
 | **codebase-improvement** | → `implement` COARSE | never — an approved audit backlog is inherently multi-task |
-| **discuss** | → `specify` | only when HUGE: ≥3 independent items, or won't fit one PR / spans sessions |
-| **research** | → nothing (informs a decision) | only if findings imply multiple implementation tracks → offer the COARSE path |
+| **research** Path B (design) | → `specify` | only when HUGE: ≥3 independent items, or won't fit one PR / spans sessions |
+| **research** Path A (evidence) | → `specify` on the answer the user picks | also: findings imply multiple implementation tracks → offer the COARSE path |
 | **any** + "run unattended / do all these / keep going across sessions" | → `implement` COARSE | no ask — explicit override |
 
 `implement` itself asks exactly **one** consent question per run — autonomous vs check-in after every wave (COARSE), or which plan to execute (LIGHT).
@@ -48,7 +48,7 @@ Which skill the pipeline starts from — and whether it routes to `implement`'s 
 
 | Skill | Trigger | What it does |
 |-------|---------|--------------|
-| [discuss](discuss/) | "let's discuss", "lets brainstorm" | Collaborative design dialogue before coding. Establishes shared terminology, proposes approaches with trade-offs, captures ADRs and glossary terms, writes the approved spec to `docs/roadmap/`. Hard gate — no code until design is approved. |
+| [research](research/) | "research", "compare", "evaluate", "deep-dive", "best practices for", "let's discuss", "lets brainstorm" | The front of the pipeline, two paths. **A — research:** clarify the question, then classify → dispatch parallel researcher subagents → synthesise → hard-stop ask → cited report. **B — design:** settle the domain language, ask one question at a time, propose approaches with trade-offs, approve section by section, capture ADRs and glossary terms. Both ask what the user means first. Neither writes the doc, and neither reaches implementation: the hard gate holds until a human approves. |
 | [specify](specify/) | After design approval | Turns an approved design into a structured implementation plan with independent, commitable tasks. Writes to `docs/roadmap/` (or to the per-task `target:` in consumed mode). Grounds the plan before writing, then vets it against the actual codebase. As a consumed-mode child (`researcher`) it grounds inline and dispatches nothing — `implement`'s COARSE path runs the grounding researcher and reviewer for it. |
 | [implement](implement/) | After plan is ready · a ticket key · "work through all of these", "do this autonomously", "break this into tasks", "keep going across sessions" | Executes the work on one of two paths. **LIGHT:** one plan (or a Task card's `plan` artifact, or a Jira ticket) — branch, baseline, dispatch per task, gate, review, PR. **COARSE:** an approved block of N≥2 tasks — partition by **owned file set** so waves are genuinely parallel, dependency graph, ground once per area to disk, fan planning out wide, implement in waves on one branch (status file = memory), one consent answer then autonomous. |
 | [finish](finish/) | "merge this", "ship it", "finish up" | Completes the plan lifecycle: checks reviews and CI, fixes issues, merges the PR, syncs local main, deletes the whole `docs/roadmap/<feature>-*` family (history lives in git). |
@@ -75,7 +75,7 @@ Which skill the pipeline starts from — and whether it routes to `implement`'s 
 
 | Skill | Trigger | What it does |
 |-------|---------|--------------|
-| [research](research/) | Comparing libraries, evaluating approaches, deep-dives | Phased research: classify → dispatch parallel researcher subagents → synthesize → hard-stop ask → write report to disk. Evidence-backed with citations. |
+| [research](research/) | Comparing libraries, evaluating approaches, deep-dives, "let's discuss" | Full skill in [Development Workflow](#development-workflow) above — it is the pipeline's front end as well as a research tool. Path A ends in a cited report under `docs/research/`; Path B ends in an approved design handed to `specify`. |
 | [find-skills](find-skills/) | "find a skill for X", "how do I do X" | Searches the open agent skills ecosystem (skills.sh) and helps discover, evaluate, and install new skills. |
 
 ## Profile and Documentation

@@ -1,6 +1,6 @@
 ---
 name: update-task-with-findings
-description: Use when a session produced durable output — an approved spec, a design decision, a measurement, a research finding — and an existing task-board card must carry it — "update the task with what we decided", "attach the spec", "record this on the card", or after discuss / specify / research finishes. Not for brand-new ideas (use add-idea-to-backlog) or for cards you are creating.
+description: Use when a session produced durable output — an approved spec, a design decision, a measurement, a research finding — and an existing task-board card must carry it — "update the task with what we decided", "attach the spec", "record this on the card", or after research / specify / implement finishes. Not for brand-new ideas (use add-idea-to-backlog) or for cards you are creating.
 ---
 
 # Update a task with new information

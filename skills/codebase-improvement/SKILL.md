@@ -43,7 +43,7 @@ Read project context to ground the analysis:
 1. **`CONTEXT.md`** — domain glossary + engineering rules section (see CONTEXT.md Extension below). If missing, use all defaults and note in report.
 2. **The ADR directory** — read all ADRs (cap: 20 by mtime). Use `docs/decisions/` if it exists, else
    `docs/adr/`, else whichever the repo's own AGENTS.md/CLAUDE.md names. **Read BOTH when both exist** — the
-   `discuss` skill writes to `docs/decisions/` and this skill historically wrote to `docs/adr/`, so a repo can
+   `research` skill writes to `docs/decisions/` and this skill historically wrote to `docs/adr/`, so a repo can
    hold decisions in either place. If every candidate is missing, skip silently and note in report. **Name the
    one you read from `<ADR_DIR>` here, once** — Phase 5 writes new ADRs to `<ADR_DIR>`, and writing NEW ADRs
    anywhere else starts a second directory that the next audit's step 2 will not read.
@@ -138,7 +138,7 @@ ask({
 |--------|--------|
 | **Approve** | Add to implementation backlog |
 | **Research more** | Dispatch a targeted research subagent scoped to this finding's open questions. Re-present the same 4 options. **Cap: 2 research rounds per finding**, then force Approve/Dismiss/Defer. |
-| **Dismiss** | Skip. If the reason is load-bearing (not "not now" or "too hard"), offer: *"Want me to record this as an ADR so future audits don't re-suggest it?"* If agreed, write to `<ADR_DIR>/NNNN-slug.md` — `<ADR_DIR>` was named in Phase 1 step 2 (in most repos `docs/decisions/`) — following the discuss skill's ADR format. |
+| **Dismiss** | Skip. If the reason is load-bearing (not "not now" or "too hard"), offer: *"Want me to record this as an ADR so future audits don't re-suggest it?"* If agreed, write to `<ADR_DIR>/NNNN-slug.md` — `<ADR_DIR>` was named in Phase 1 step 2 (in most repos `docs/decisions/`) — following the `research` skill's ADR format ([adr-format.md](../research/adr-format.md)). |
 | **Defer** | Move to a "Needs Decision" list. Revisit all deferred findings at the end of Phase 5. |
 
 After all findings discussed, present the approved backlog + any remaining deferred items.
@@ -159,7 +159,7 @@ ask({
 })
 ```
 
-- **Decompose and run in waves** → Clear todo list, load the `implement` skill and pass the approved backlog — it takes its **COARSE path** (decompose by owned file set → ground → plan every task → waves) and runs its own consent question. **Pass the Task card id too, if this audit was launched from a card** — `implement` is loaded mid-session, never sees the `<task>` block, and its own mirrors (status file → card) dead-end without it. Pass the `<task id="tsk_…">` block verbatim, or the id if that is all you have. An audit backlog is inherently multi-task, so this is the default — it needs no extra confirmation beyond this menu. (This deliberately differs from `discuss`, which routes small single-design work straight to `specify`.)
+- **Decompose and run in waves** → Clear todo list, load the `implement` skill and pass the approved backlog — it takes its **COARSE path** (decompose by owned file set → ground → plan every task → waves) and runs its own consent question. **Pass the Task card id too, if this audit was launched from a card** — `implement` is loaded mid-session, never sees the `<task>` block, and its own mirrors (status file → card) dead-end without it. Pass the `<task id="tsk_…">` block verbatim, or the id if that is all you have. An audit backlog is inherently multi-task, so this is the default — it needs no extra confirmation beyond this menu. (This deliberately differs from `research` Path B, which routes small single-design work straight to `specify`.)
 - **Save for later** → Report already saved in `docs/reviews/`
 - **Revise findings** → Return to Phase 2 with refined angles
 
@@ -206,7 +206,7 @@ Every finding carries:
 
 ## CONTEXT.md Extension — Engineering Rules Section
 
-This skill extends `CONTEXT.md` with an "Engineering Rules" section. The discuss skill owns the `CONTEXT.md` schema for domain terminology; this section is an additive extension for project-level engineering preferences.
+This skill extends `CONTEXT.md` with an "Engineering Rules" section. The `research` skill owns the `CONTEXT.md` schema for domain terminology (its Path B, and [context-format.md](../research/context-format.md)); this section is an additive extension for project-level engineering preferences.
 
 Format:
 
@@ -220,12 +220,12 @@ Format:
 - One domain concept per file
 ```
 
-The skill loads these and applies them alongside the default lenses. When the discuss skill resolves terminology, it should preserve any existing "Engineering Rules" section.
+The skill loads these and applies them alongside the default lenses. When the `research` skill resolves terminology, it should preserve any existing "Engineering Rules" section.
 
 ## ADR Integration
 
 - **Before scanning:** Read existing ADRs to know what not to re-suggest
-- **During discuss:** If a finding contradicts an ADR, only surface it when friction is real enough to warrant reopening. Mark clearly: *"contradicts ADR-0007 — but worth reopening because..."*
+- **During design (`research` Path B):** If a finding contradicts an ADR, only surface it when friction is real enough to warrant reopening. Mark clearly: *"contradicts ADR-0007 — but worth reopening because..."*
 - **After dismiss:** If the user dismisses with a load-bearing reason, offer: *"Want me to record this as an ADR so future audits don't re-suggest it?"* If agreed, write to `<ADR_DIR>/NNNN-slug.md` (Phase 1 step 2) following the discuss skill's ADR format.
 
 ## Edge Cases

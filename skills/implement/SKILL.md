@@ -33,7 +33,7 @@ Decide from the shape of the work, then **state the path and the reason in one l
 
 **N=1 is a real path, not a failure.** Earlier this skill refused single-plan work and handed it to `specify`; that handoff is gone. Running the status-file machinery for one task is pure overhead, and refusing the work is worse — so a single task takes the LIGHT path and stays here.
 
-If the entry is `discuss` / `research` / `codebase-improvement` handing you an approved block, decompose it first (COARSE Step 0) and let the decomposition decide the path.
+If the entry is `research` / `codebase-improvement` handing you an approved block, decompose it first (COARSE Step 0) and let the decomposition decide the path.
 
 ---
 
@@ -48,7 +48,7 @@ Load the `trees-and-branches` skill. Determine whether this work is part of a **
 - **Simple (single PR):** create `feature/<topic>` from `main`.
 - **Stacked:** create `stack/<sub-plan-name>` from the previous stack branch (or trunk for the first), then `gh stack init` and `gh stack submit`.
 
-**`<feature>` IS the branch topic — `feature/<topic>` → `<feature> = <topic>`.** Every artifact is named from it (`<feature>-status.md`, `<feature>-taskNN-*.md`, `<feature>-follow-ups.md`) and `finish` deletes by the same name. Never derive it from an audit date, a report filename, or a spec title, or the status file and task plans are orphaned on ship. When the entry is `discuss`, **`<topic>` must be the spec's basename** — if `trees-and-branches` would prepend a ticket id (`feature/PROJ-12-user-auth`), name the branch `feature/user-auth` instead, or rename the spec to match. The branch topic and the spec basename must be the same string or `finish` deletes a family that does not exist and leaves the real one behind. When the entry is `codebase-improvement` or `research`, there is no spec file at `docs/roadmap/<feature>.md`; that is expected, and `finish` skips it.
+**`<feature>` IS the branch topic — `feature/<topic>` → `<feature> = <topic>`.** Every artifact is named from it (`<feature>-status.md`, `<feature>-taskNN-*.md`, `<feature>-follow-ups.md`) and `finish` deletes by the same name. Never derive it from an audit date, a report filename, or a spec title, or the status file and task plans are orphaned on ship. When the entry is `research` (Path B, an approved design) **`<topic>` must be the spec's basename** — `research` names the topic in its handoff precisely so this holds; if `trees-and-branches` would prepend a ticket id (`feature/PROJ-12-user-auth`), name the branch `feature/user-auth` instead, or rename the spec to match. The branch topic and the spec basename must be the same string or `finish` deletes a family that does not exist and leaves the real one behind. When the entry is `codebase-improvement`, or `research` Path A (a report only), there is no spec file at `docs/roadmap/<feature>.md` until Step 0 writes the run's parent doc; that is expected, and `finish` skips a parent doc that was never needed.
 
 Task branches come from the same topic — `feature/<topic>-task$n`, so `for n in 1 2 3` yields
 `-task1`, `-task2`, **unpadded** — and `git branch --list "feature/<topic>*"` finds them all. Note the
@@ -267,16 +267,27 @@ Consent is the **one** question above (plus the wave-mode statement, which is a 
 
 # COARSE PATH — an approved block, many tasks
 
-Use for many findings approved at once, work outliving one context window, or being told to proceed without asking. Not a single task (that is the LIGHT path) and not unapproved scope (`discuss`).
+Use for many findings approved at once, work outliving one context window, or being told to proceed without asking. Not a single task (that is the LIGHT path) and not an unapproved design (that is `research` Path B).
 
 ## Step 0 — Entry, decompose, consent
 
 The approved block arrives from an entry skill. Know which one, and what to read:
 
 - **codebase-improvement** → the approved report in `docs/reviews/`. (Always routes here — an audit backlog is inherently multi-task.)
-- **discuss** → the spec at `docs/roadmap/<topic>.md` (`status: approved`) plus its `issue:` **and `task:`** front-matter keys — `task:` is the Task board card id and, since you are loaded mid-session, the only place you can get it (you never see the `<task>` block). Absent key → no card; skip every card step. **Do NOT flip the spec's `status: approved` to `committed`** — the LIGHT path treats `status: committed` as an executable plan, so flipping it would offer a task-list-less spec as a plan. Leave it `approved`; the existence of `<feature>-status.md` is what marks the run in progress.
-- **research** → its report in `docs/research/`.
-- **A Task card** → the `<task>` block in your first message; `task:` in a spec's front-matter if there is one.
+- **research** → two shapes, and which one you got changes what you can read:
+  - **Path B (approved design)** → the design arrives **in the handoff text**: `research` deliberately
+    writes no doc, so at this point `docs/roadmap/<topic>.md` does not exist. That is also why the
+    handoff must forward the `<task id="tsk_…">` block — with no doc, the block is your only source for
+    the card id. If a `status: approved` doc DOES exist (an earlier run, or a doc predating this
+    merge), read it and its `issue:`/`task:` keys, and **do NOT flip `approved` to `committed`** — the
+    LIGHT path treats `committed` as an executable plan, so flipping it would offer a task-list-less
+    spec as a plan. Leave it `approved`; `<feature>-status.md` is what marks the run in progress.
+  - **Path A (a report only)** → its report in `docs/research/`, plus the `task:` key in that report's
+    front-matter.
+  - Either way, if neither the block nor a `task:` key is present, there is no card — skip every card
+    step. Step 0 writes the run's parent doc.
+- **A Task card** → the `<task>` block in your first message; `task:` in a spec's or report's
+  front-matter if there is one.
 
 Then:
 
@@ -284,9 +295,12 @@ Then:
 2. **If the draft yields exactly one task → take the LIGHT path.** No status file, no waves. The COARSE machinery earns its cost only at N≥2 or across sessions.
 
    When the entry was `codebase-improvement` or `research` there is no `docs/roadmap/<topic>.md` for `specify` to find — **pass the approved block's content forward in the handoff text** (the finding or the track, verbatim) and name the report path, so `specify` plans from it instead of asking the user to re-state the spec.
-3. **Create the feature branch** (Branch Setup).
-4. **Build the session list** — one entry per task, in draft wave order, named `W<wave> · <task id>` (`W1 · A1`). Step 2 re-labels it from the resolved graph. No slug: slugs are minted later by consumed `specify`, and a name you invent now will not match the plan filename `finish` deletes by.
-5. **Ask the ONE consent question** — the only approval for the run (see *Consent and autonomy*):
+3. **Write the run's parent doc** — `docs/roadmap/<feature>.md` — if the entry did not already leave one. This is the ONLY file in `docs/roadmap/` that `implement` writes as prose; `specify` owns the per-unit spec+plan doc, and this is not that. It exists because consumed `specify` stamps every per-task plan with `parent: docs/roadmap/<feature>.md`, and a COARSE run **spans sessions**, so the approved block has to be readable by a session that was not in the conversation. Content: the approved block verbatim (the tracks/findings/design), `status: approved`, `done-when`, plus `issue:` and `task:` keys when this run knows them.
+
+   Skipping it does not error — nothing opens the parent — but it leaves N plan docs citing a file that does not exist, and the design surviving only in this session's context, which is exactly what a multi-session run cannot afford.
+4. **Create the feature branch** (Branch Setup).
+5. **Build the session list** — one entry per task, in draft wave order, named `W<wave> · <task id>` (`W1 · A1`). Step 2 re-labels it from the resolved graph. No slug: slugs are minted later by consumed `specify`, and a name you invent now will not match the plan filename `finish` deletes by.
+6. **Ask the ONE consent question** — the only approval for the run (see *Consent and autonomy*):
 
 ```
 ask({
@@ -362,7 +376,7 @@ Measure the gate and ground every area in one response. The children only read, 
 - **Apply and report** each merge in one line. A merge or re-cut that adds or drops approved scope **stops and `ask`s**.
 - **Write the status file** (`Owns` column, graph with signatures, area → report map, baseline record, resolved waves, `mode:`). Commit it and the grounding reports by pathspec. The orchestrator owns git; no child is needed.
 - **Re-label the session list** from the resolved waves.
-- **Mirror the task breakdown** as a NEW COMMENT on the spec's issue (the doc's `issue:` key, per `discuss` step 1b / `specify`'s mirror step) — written once here, since consumed mode cannot. No spec doc / no `issue:` key (the `codebase-improvement` and `research` entries) → nothing to mirror to: say so once and continue. No tracker / no `gh` → same. This never gates the run.
+- **Mirror the task breakdown** as a NEW COMMENT on the spec's issue (the doc's `issue:` key, per `specify`'s mirror step) — written once here, since consumed mode cannot. No spec doc / no `issue:` key (the `codebase-improvement` and `research` entries) → nothing to mirror to: say so once and continue. No tracker / no `gh` → same. This never gates the run.
 - **Mirror the status file to the Task card** — the card id comes from EITHER the spec's `task:` key OR the entry skill's handoff (an audit or research entry has no spec doc, so the id can only arrive in the invocation text). Launched from a card and holding no id → ask once. With an id, after writing the status file — and again whenever the run's shape changes, a wave resolving or a task going `blocked` — call `write_artifact(task_id, key: "status", markdown: <the status file's contents>)`. It UPSERTS, so refreshing is the intended use. **`status` is the ONLY key this step writes.** The task breakdown above goes to the TRACKER as an issue comment and never to the card — there is no `comment` artifact key. No id, or no `write_artifact` tool → say so once and continue; never emulate an artifact with a file.
 
   **This is not a courtesy copy.** The status file is this run's *only memory*. Check whether its path is gitignored (`git check-ignore -q docs/roadmap/<feature>-status.md`); if it is, "commit it by pathspec" does not just skip, it **fails** — `git commit -- <path>` on an untracked ignored file answers *"pathspec … did not match any file(s) known to git"* — and the artifact is then the sole durable copy of the graph, the `Owns` sets and the per-task Status rows.

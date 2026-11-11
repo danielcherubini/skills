@@ -1,6 +1,6 @@
 ---
 name: add-idea-to-backlog
-description: Use when an idea, request, or half-formed feature surfaces mid-session and must be recorded as a task-board card instead of designed on the spot — "add it to the backlog", "note this for later", "put this on the board", "we should do X someday", or when an audit, research finding, or bug report is filed rather than acted on. Not for designing the idea (use discuss) or planning it (use specify).
+description: Use when an idea, request, or half-formed feature surfaces mid-session and must be recorded as a task-board card instead of designed on the spot — "add it to the backlog", "note this for later", "put this on the board", "we should do X someday", or when an audit, research finding, or bug report is filed rather than acted on. Not for designing the idea (use research's Path B) or planning it (use specify).
 ---
 
 # Add an idea to the backlog
@@ -20,7 +20,7 @@ spec so it's useful later" is where a captured idea hardens into invented requir
 - A finding from an audit / research run / issue triage that is **filed, not fixed**
 - An idea that arrives mid-task and is not what you were asked to build
 
-**Not for:** designing it (`discuss`), planning it (`specify`), implementing it, or
+**Not for:** designing it (`research` Path B), planning it (`specify`), implementing it, or
 tracking work you are doing right now (that is `manage_todo_list`).
 
 ## The sequence
@@ -28,7 +28,7 @@ tracking work you are doing right now (that is `manage_todo_list`).
 1. **`list_board(space_path)` on the Space you are working in.** `space_path` is the
    working directory itself — pass your cwd, do not guess or reconstruct a path. Never
    guess the slug either: `backlog` is the seeded default (`DEFAULT_STAGES`: `backlog,
-   discuss, research, approved, doing, done`) but Stages are **user-editable per Space**,
+   research, approved, doing, done`) but Stages are **user-editable per Space**,
    and an unknown slug errors naming the valid set.
 2. **Duplicate-check that listing before creating.** Scan titles for the same subject.
    If one exists, `edit_task` / `write_artifact` onto it — do not add a second card.
@@ -58,7 +58,7 @@ Four parts, in this order:
 |---|---|
 | Slug unknown | `list_board` first; use the returned slug verbatim |
 | Similar card exists | `edit_task` onto it; do not create |
-| Idea needs design | Capture it, then offer `discuss` — never design inside the capture |
+| Idea needs design | Capture it, then offer `research` (Path B) — never design inside the capture |
 | Idea is a real bug you can fix now | Say so; filing it is the wrong move |
 | You are a **subagent/worker** | Do NOT call board tools (see below) — report the exact calls for the parent session to make |
 

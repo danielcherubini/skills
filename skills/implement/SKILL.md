@@ -50,7 +50,11 @@ Load the `trees-and-branches` skill. Determine whether this work is part of a **
 
 **`<feature>` IS the branch topic — `feature/<topic>` → `<feature> = <topic>`.** Every artifact is named from it (`<feature>-status.md`, `<feature>-taskNN-*.md`, `<feature>-follow-ups.md`) and `finish` deletes by the same name. Never derive it from an audit date, a report filename, or a spec title, or the status file and task plans are orphaned on ship. When the entry is `discuss`, **`<topic>` must be the spec's basename** — if `trees-and-branches` would prepend a ticket id (`feature/PROJ-12-user-auth`), name the branch `feature/user-auth` instead, or rename the spec to match. The branch topic and the spec basename must be the same string or `finish` deletes a family that does not exist and leaves the real one behind. When the entry is `codebase-improvement` or `research`, there is no spec file at `docs/roadmap/<feature>.md`; that is expected, and `finish` skips it.
 
-Task branches come from the same topic — `feature/<topic>-taskNN` — so `git branch --list "feature/<topic>*"` finds them all. **Never commit onto `main`.**
+Task branches come from the same topic — `feature/<topic>-task$n`, so `for n in 1 2 3` yields
+`-task1`, `-task2`, **unpadded** — and `git branch --list "feature/<topic>*"` finds them all. Note the
+asymmetry: plan *files* are zero-padded (`<feature>-taskNN-<slug>.md`), branches are not, so no single
+glob covers both and nothing should pattern-match branch names as if they were padded. **Never commit
+onto `main`.**
 
 **Do not create task worktrees here.** They branch from the feature branch's tip, so they come into existence per wave, *after* the Baseline Check — created before it, they would fork the pre-fix base and every child would inherit the broken gate you were about to repair.
 

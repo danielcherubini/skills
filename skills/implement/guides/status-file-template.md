@@ -24,9 +24,11 @@ One paragraph: what "finished" means, and which source document the work comes f
 The whole wave moves at once — planning fans out, it is not one task at a time.
 
 **On every resume, before dispatching anything:** run `git status --porcelain` **and `git worktree list`.** A wave
-child's edits land in its own worktree, so a clean primary tree proves nothing — an `*-taskNN` worktree left over
-from a dead iteration means that task died **mid-implementation**: check `git -C <worktree> status --porcelain` for
-each one. Such a task is `implemented`, not
+child's edits land in its own worktree, so a clean primary tree proves nothing — a task worktree left over
+from a dead iteration means that task died **mid-implementation**: treat **every** entry `git worktree list`
+returns besides the primary checkout as suspect (do not filter by name — branches are `feature/<topic>-task1`,
+`-task2`, unpadded, so a `*-taskNN` pattern matches nothing and the dead child's tree goes unnoticed), and check
+`git -C <worktree> status --porcelain` for each one. Such a task is `implemented`, not
 `todo`, and its siblings may be half-written. Commit or set aside those edits — in that worktree, on that task's
 branch; never dispatch a new wave
 on a dirty tree. Then re-derive every task's state from the table's Status tests (plan file? changelog?

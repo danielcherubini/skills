@@ -1,0 +1,5 @@
+# Runtime files
+.skill-lock.json
+
+# Local-only skills
+skills/create-jira-ticket/

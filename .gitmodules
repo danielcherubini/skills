@@ -1,0 +1,3 @@
+[submodule "kit"]
+	path = kit
+	url = https://github.com/archimedes-codes/skills.git
